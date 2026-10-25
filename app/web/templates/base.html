@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f4e79">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false}'>
+  <title>{% block title %}Finances{% endblock %}</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icon-192.png">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/vendor/htmx-2.0.11.min.js" defer></script>
+  <script src="/static/register-sw.js" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body{% if user %} hx-headers='{"X-CSRF-Token": "{{ user.csrf }}"}'{% endif %}>
+  <header>
+    <nav aria-label="Rubriques">
+      <a class="titre" href="/">Finances</a>
+      {% if user %}
+      {% set section = current_section(request.url.path) %}
+      {# nosemgrep: var-in-href (adresses constantes du code, templating.NAVIGATION) #}
+      {% for title, pages in nav %}<a href="{{ pages[0][0] }}"{% if pages | length == 1 and request.url.path == pages[0][0] %} aria-current="page"{% elif loop.index0 == section %} class="rubrique-active"{% endif %}>{{ title }}</a>{% endfor %}
+      <form method="post" action="/deconnexion" class="deconnexion">
+        <input type="hidden" name="csrf" value="{{ user.csrf }}">
+        <button type="submit">Déconnexion</button>
+      </form>
+      {% endif %}
+    </nav>
+    {% if user and section is not none and nav[section][1] | length > 1 %}
+    <nav class="sous-navigation" aria-label="{{ nav[section][0] }}">
+      {# nosemgrep: var-in-href (adresses constantes du code, templating.NAVIGATION) #}
+      {% for href, label in nav[section][1] %}<a href="{{ href }}"{% if request.url.path == href %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+    </nav>
+    {% endif %}
+  </header>
+  <main>
+    {# Refus renvoyé par un formulaire (« ?erreur= » scellé) : affiché ici pour toute page qui ne
+       le montre pas elle-même (celles qui passent « erreur » le placent à leur façon). #}
+    {% if erreur is not defined and request %}{% set refus = flash(request, "erreur") %}{% if refus %}<p class="negatif" role="alert">{{ refus }}</p>{% endif %}{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="discret">Système en lecture seule : il observe et prévient, il ne peut déplacer aucun argent.</footer>
+</body>
+</html>

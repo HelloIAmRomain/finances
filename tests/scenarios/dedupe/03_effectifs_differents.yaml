@@ -1,0 +1,15 @@
+description: Trois cafés côté API, deux côté CSV ; rien n'est tranché automatiquement.
+imports:
+  - source: enable_banking
+    transactions:
+      - {id: a1, external_id: E1, date: 2026-09-03, amount: -250, label: CB CAFE}
+      - {id: a2, external_id: E2, date: 2026-09-03, amount: -250, label: CB CAFE}
+      - {id: a3, external_id: E3, date: 2026-09-03, amount: -250, label: CB CAFE}
+  - source: csv
+    transactions:
+      - {id: c1, date: 2026-09-03, amount: -250, label: CB CAFE DU PORT}
+      - {id: c2, date: 2026-09-03, amount: -250, label: CB CAFE DU PORT}
+expected_links:
+  - {canonical: a1, duplicate: c1, reason: multiset, status: proposed, mode: auto}
+  - {canonical: a2, duplicate: c2, reason: multiset, status: proposed, mode: auto}
+expected_review_items: 2

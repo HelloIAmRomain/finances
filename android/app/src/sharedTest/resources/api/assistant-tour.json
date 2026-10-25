@@ -1,0 +1,24 @@
+{
+  "tour": "tour-factice-1",
+  "conversation": 7,
+  "etat": "termine",
+  "evenements": [
+    {
+      "n": 1,
+      "type": "etape",
+      "texte": "Consulte : Dépenses (ou revenus) par catégorie"
+    },
+    {
+      "n": 2,
+      "type": "fin",
+      "texte": ""
+    }
+  ],
+  "texte_partiel": "## Septembre\n\n- **Total** : 153,69 €\n- Restaurants : 18,50 €\n\n| Catégorie | Montant |\n|---|---|\n| Courses | 120,00 € |",
+  "reponse": "## Septembre\n\n- **Total** : 153,69 €\n- Restaurants : 18,50 €\n\n| Catégorie | Montant |\n|---|---|\n| Courses | 120,00 € |",
+  "outils": [
+    "depenses_par_categorie"
+  ],
+  "modifications": [],
+  "erreur": null
+}

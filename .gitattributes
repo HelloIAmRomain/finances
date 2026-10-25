@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.pdf binary
+# Relevés d'exemple : conservés octet pour octet (encodage, BOM, fins de ligne CRLF).
+tests/data/** -text
+# Bibliothèques JavaScript embarquées : octets intacts (sommes de contrôle).
+app/web/static/vendor/** -text

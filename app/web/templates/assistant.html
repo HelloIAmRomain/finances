@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Assistant · Finances{% endblock %}
+{% block head %}<script src="/static/assistant.js" defer></script>{% if running %}<noscript><meta http-equiv="refresh" content="3"></noscript>{% endif %}{% endblock %}
+{% block content %}
+{% macro actions(c) %}
+  <form method="post" action="/assistant/{{ c.id }}/renommer" class="formulaire en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <input type="hidden" name="retour" value="{{ conversation or 0 }}">
+    <label>Titre <input name="titre" maxlength="60" value="{{ c.title }}" required></label>
+    <button type="submit">Renommer</button>
+  </form>
+  <form method="post" action="/assistant/{{ c.id }}/epingler" class="en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <input type="hidden" name="retour" value="{{ conversation or 0 }}">
+    <input type="hidden" name="epingle" value="{{ 'false' if c.pinned else 'true' }}">
+    <button type="submit" class="secondaire">{{ "Désépingler" if c.pinned else "Épingler en tête" }}</button>
+  </form>
+  <form method="post" action="/assistant/{{ c.id }}/supprimer" class="en-ligne supprimer-conversation">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <input type="hidden" name="retour" value="{{ conversation or 0 }}">
+    <button type="submit" class="secondaire">Supprimer</button>
+  </form>
+{% endmacro %}
+<h1>Assistant</h1>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<div class="assistant">
+  <aside class="carte conversations" aria-label="Conversations">
+    <p><a href="/assistant" class="bouton">+ Nouvelle conversation</a></p>
+    <ul>
+      {% for c in conversations %}
+        <li{% if c.id == conversation %} aria-current="page"{% endif %}{% if c.pinned %} class="epinglee"{% endif %}>
+          <a href="/assistant?conversation={{ c.id }}">{% if c.pinned %}<span title="Épinglée">📌</span> {% endif %}{{ c.title }}</a>
+          <span class="discret">{{ c.updated_at | date_fr }}</span>
+          <details class="actions-conversation">
+            <summary aria-label="Actions sur « {{ c.title }} »" title="Renommer, épingler, supprimer">⋯</summary>
+            {{ actions(c) }}
+          </details>
+        </li>
+      {% else %}
+        <li class="discret">Aucune conversation.</li>
+      {% endfor %}
+    </ul>
+  </aside>
+  <section class="discussion">
+    {% if conversation %}
+      <details class="carte">
+        <summary>{% if current_pinned %}📌 {% endif %}<strong>{{ title }}</strong> — renommer, épingler ou supprimer</summary>
+        {{ actions({"id": conversation, "title": title, "pinned": current_pinned}) }}
+      </details>
+    {% endif %}
+    <div class="carte conversation">
+      {% for e in exchanges %}
+        {% if e.role == "user" %}
+          <div class="question"><strong>Vous</strong><p>{{ e.text }}</p></div>
+        {% elif e.interrupted %}
+          <div class="reponse interrompue"><strong>Assistant</strong><p class="discret">{{ e.text }}</p></div>
+        {% else %}
+          <div class="reponse"><strong>Assistant</strong>{{ e.text | markdown }}{% if e.tools %}<p class="discret">{{ e.tools | length }} consultation{{ "s" if e.tools | length > 1 else "" }} des données</p>{% endif %}</div>
+        {% endif %}
+      {% else %}
+        <p class="discret" id="exemples">Exemples : « Combien ai-je dépensé en restaurants ce mois-ci ? », « Quels sont mes abonnements ? », « Le loyer de septembre est-il arrivé ? », « À quoi sert mon compte joint ? »</p>
+      {% endfor %}
+      {% if running %}
+        <div class="reponse en-cours" data-tour="{{ running }}"><strong>Assistant</strong><ul class="etapes discret"></ul><div class="texte"><p class="discret">L'assistant réfléchit…</p></div></div>
+      {% endif %}
+      <span id="fin"></span>
+    </div>
+    <form method="post" action="/assistant" class="carte formulaire" id="formulaire-assistant">
+      <input type="hidden" name="csrf" value="{{ user.csrf }}">
+      <input type="hidden" name="conversation" value="{{ conversation or '' }}">
+      <label>Message <textarea name="texte" rows="3" maxlength="2000" required></textarea></label>
+      <button type="submit">Envoyer</button>
+      <button type="button" id="dicter" class="secondaire" hidden>Dicter</button>
+      <p id="statut-dictee" role="status" class="discret" hidden></p>
+    </form>
+  </section>
+</div>
+{% endblock %}

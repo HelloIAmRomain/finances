@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Nouveau bail · Finances{% endblock %}
+{% block content %}
+<h1>Nouveau bail ou encaissement attendu</h1>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+<form method="post" action="/loyers" class="carte formulaire">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}">
+  <label>Type
+    <select name="type">
+      <option value="rent">Loyer d'un bien</option>
+      <option value="loan">Remboursement attendu (prêt à un proche)</option>
+    </select>
+  </label>
+  <label>Nom <input name="nom" required maxlength="128" placeholder="Studio, T2, prêt…"></label>
+  <fieldset class="formulaire">
+    <legend>Bien (pour un loyer)</legend>
+    <label>Bien existant
+      <select name="bien"><option value="">— nouveau bien —</option>{% for p in properties %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+    </label>
+    <label>Nom du nouveau bien <input name="nouveau_bien" maxlength="128"></label>
+    <label>Ma quote-part (%) <input name="ma_part" type="number" min="1" max="100" value="50"></label>
+  </fieldset>
+  <label>Compte d'encaissement
+    <select name="compte" required>{% for a in accounts %}<option value="{{ a.id }}">{{ a.name }} (n° {{ a.id }})</option>{% endfor %}</select>
+  </label>
+  <label>Début du bail <input name="debut" type="date" required value="{{ today.replace(day=1).isoformat() }}"></label>
+  <label>Suivi à partir du mois <input name="suivi" type="month"></label>
+  <p class="discret">Laisser vide : le suivi commence au premier mois pour lequel la banque fournit l'historique (90 jours en général). Les mois antérieurs ne peuvent pas être vérifiés.</p>
+  <label>Montant mensuel (loyer hors charges ou mensualité) <input name="montant" inputmode="decimal" required placeholder="800,00"></label>
+  <label>Charges mensuelles <input name="charges" inputmode="decimal" placeholder="0,00"></label>
+  <label>Dépôt de garantie <input name="depot" inputmode="decimal" placeholder="0,00"></label>
+  <label>Jour d'échéance <input name="jour_echeance" type="number" min="1" max="28" value="1"></label>
+  <label>Alerte « rien reçu » le <input name="jour_alerte" type="number" min="1" max="28" value="5"></label>
+  <label>Alerte « impayé » le <input name="jour_impaye" type="number" min="2" max="28" value="10"></label>
+  <fieldset class="formulaire">
+    <legend>Payeur (locataire ou emprunteur)</legend>
+    <label>Nom <input name="payeur_nom" required maxlength="128"></label>
+    <label>IBAN (facultatif) <input name="payeur_iban" autocomplete="off" maxlength="42"></label>
+    <label>Motif du libellé bancaire <input name="payeur_motif" maxlength="64" placeholder="VIR DE M DUPONT"></label>
+    <p class="discret">Vos banques ne transmettent pas l'IBAN de l'émetteur : le payeur est surtout reconnu par un motif présent dans le libellé du virement (son nom tel qu'il apparaît, par exemple). Son nom est aussi cherché.</p>
+  </fieldset>
+  <fieldset class="formulaire">
+    <legend>Caution (facultatif)</legend>
+    <label>Nom <input name="caution_nom" maxlength="128"></label>
+    <label>Motif du libellé <input name="caution_motif" maxlength="64"></label>
+  </fieldset>
+  <button type="submit">Enregistrer</button>
+</form>
+{% endblock %}

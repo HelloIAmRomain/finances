@@ -1,0 +1,3 @@
+{% macro tx(t, titre) %}
+{% if t %}<div class="tx"><span class="discret">{{ titre }}</span><br>{{ t.booking_date | date_fr }} · {{ t.account_name }}<br>{{ t.label }}<br><strong class="{{ t.amount_cents | amount_class }}">{{ t.amount_cents | eur }}</strong></div>{% endif %}
+{% endmacro %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Prévision · Finances{% endblock %}
+{% block content %}
+<h1>Prévision de trésorerie</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p class="discret">Solde projeté de chaque compte à partir de son dernier solde connu, des opérations régulières détectées (abonnements, salaire, virements réguliers entre vos comptes) et des loyers attendus. Les dépenses ponctuelles ne sont pas prévues : c'est une estimation. Avec un seuil, une notification prévient si le solde prévu passe en dessous dans les 30 jours.</p>
+<nav class="pagination" aria-label="Horizon">
+  {% for h in horizons %}{% if h == days %}<strong>{{ h }} jours</strong>{% else %}<a href="/prevision?jours={{ h }}">{{ h }} jours</a>{% endif %}{% endfor %}
+</nav>
+
+{% if total %}
+<div class="tuiles">
+  <div class="carte"><span class="discret">Comptes suivis, dans {{ days }} jours</span><br><strong class="{{ total.end_cents | amount_class }}">{{ total.end_cents | eur }}</strong><br><span class="discret">aujourd'hui {{ total.start_cents | eur }} · point bas {{ total.low_cents | eur }} le {{ total.low_date | date_fr }}</span></div>
+</div>
+{% endif %}
+
+<section class="carte">
+  <h2>Par compte</h2>
+  <table>
+    <thead><tr><th>Compte</th><th class="montant">Aujourd'hui</th><th class="montant">Dans {{ days }} jours</th><th class="montant">Point bas</th><th>Seuil d'alerte</th></tr></thead>
+    <tbody>
+    {% for a in accounts %}
+      <tr>
+        <td>{{ a.name }}{% if not a.counted %} <span class="badge">consultation seule</span>{% endif %}</td>
+        {% if a.projection %}
+        <td class="montant {{ a.balance_cents | amount_class }}">{{ a.balance_cents | eur }}<br><span class="discret">au {{ a.balance_date | date_fr }}</span></td>
+        <td class="montant {{ a.projection.end_cents | amount_class }}">{{ a.projection.end_cents | eur }}</td>
+        <td class="montant"><span class="{{ 'negatif' if a.below_threshold else (a.projection.low_cents | amount_class) }}">{{ a.projection.low_cents | eur }}</span><br><span class="discret">le {{ a.projection.low_date | date_fr }}</span></td>
+        {% else %}
+        <td colspan="3" class="discret">Solde inconnu : mettez à jour le compte (page Comptes) ou importez un relevé.</td>
+        {% endif %}
+        <td>
+          <form method="post" action="/prevision/{{ a.account_id }}/seuil" class="en-ligne">
+            <input type="hidden" name="csrf" value="{{ user.csrf }}">
+            <input name="seuil" inputmode="decimal" size="8" aria-label="Seuil d'alerte du compte {{ a.name }}" placeholder="aucun, ex. 200" value="{{ a.threshold_cents | eur if a.threshold_cents is not none else '' }}">
+            <button type="submit" class="secondaire">Enregistrer le seuil</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="discret">Aucun compte.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="carte">
+  <h2>Opérations attendues</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Opération</th><th>Compte</th><th class="montant">Montant</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr><td>{{ e.day | date_fr }}</td><td>{{ e.label }} <span class="badge">{{ {"récurrent": "opération régulière", "loyer": "loyer attendu"}.get(e.source, e.source) }}</span></td><td>{{ names.get(e.account_id, "") }}</td><td class="montant {{ e.amount_cents | amount_class }}">{{ e.amount_cents | eur }}</td></tr>
+    {% else %}
+      <tr><td colspan="4" class="discret">Aucune opération régulière détectée pour l'instant : il faut quelques mois d'historique.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

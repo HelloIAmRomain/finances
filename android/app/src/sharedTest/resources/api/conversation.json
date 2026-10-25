@@ -1,0 +1,19 @@
+{
+  "id": 3,
+  "titre": "Abonnements",
+  "epinglee": false,
+  "messages": [
+    {
+      "role": "user",
+      "texte": "Quels abonnements ?",
+      "outils": []
+    },
+    {
+      "role": "assistant",
+      "texte": "**Netflix** : 13,99 € par mois",
+      "outils": [
+        "recurrents"
+      ]
+    }
+  ]
+}

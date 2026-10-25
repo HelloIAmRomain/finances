@@ -1,0 +1,10 @@
+description: Même référence bancaire (FITID OFX = identifiant API) malgré des dates différentes.
+imports:
+  - source: enable_banking
+    transactions:
+      - {id: api, external_id: R42, date: 2026-09-04, amount: -1990, label: PRLV ASSURANCE}
+  - source: ofx
+    transactions:
+      - {id: ofx, external_id: R42, date: 2026-09-01, amount: -1990, label: PRLV ASSURANCE EXEMPLE}
+expected_links:
+  - {canonical: api, duplicate: ofx, reason: reference, status: confirmed, mode: auto}

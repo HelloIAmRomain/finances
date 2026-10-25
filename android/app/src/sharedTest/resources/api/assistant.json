@@ -1,0 +1,9 @@
+{
+  "conversation": 7,
+  "titre": "Combien en restaurants ?",
+  "reponse": "## Septembre\n\n- **Total** : 153,69 €\n- Restaurants : 18,50 €\n\n| Catégorie | Montant |\n|---|---|\n| Courses | 120,00 € |",
+  "outils": [
+    "depenses_par_categorie"
+  ],
+  "modifications": []
+}

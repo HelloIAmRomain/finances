@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Échéances · Finances{% endblock %}
+{% macro row(e) %}
+<tr>
+  <td>{{ e.day | date_fr }}<br><span class="discret">{% set n = e.days_left(today) %}{% if e.done %}réglée{% elif n == 0 %}aujourd'hui{% elif n > 0 %}dans {{ n }} jour{{ "s" if n > 1 }}{% else %}il y a {{ -n }} jour{{ "s" if -n > 1 }}{% endif %}</span></td>
+  {# nosemgrep: var-in-href (adresses construites par le code : app.tax.calendar) #}
+  <td><a href="{{ e.href }}">{{ e.title }}</a><br><span class="discret">{{ category_labels[e.category] }}</span></td>
+  <td class="montant">{% if e.amount_cents %}{{ e.amount_cents | eur }}{% if e.recoverable_cents %}<br><span class="discret">dont récupérable {{ e.recoverable_cents | eur }}</span>{% endif %}{% else %}<span class="discret">—</span>{% endif %}</td>
+</tr>
+{% endmacro %}
+{% block content %}
+<h1>Échéances</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p class="discret">Taxe foncière, CFE, déclaration des revenus, accès aux banques à renouveler, révision et fin des baux : une notification part avant chaque date (7 jours avant par défaut). Une échéance dont le montant est saisi est cochée d'elle-même quand le paiement apparaît sur un compte.</p>
+<div class="actions">
+  <a class="bouton" href="/echeances.ics" download>Ajouter à l'agenda du téléphone (.ics)</a>
+  <form method="post" action="/echeances/habituelles" class="en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Ajouter les échéances habituelles</button>
+  </form>
+</div>
+<p class="discret">« Échéances habituelles » : taxe foncière (15 octobre) et CFE (15 décembre, biens meublés) pour chaque bien, déclaration des revenus (mi-mai à début juin selon le département). Dates modifiables ensuite.</p>
+
+{% if late %}
+<section class="carte">
+  <h2 class="negatif">En retard ({{ late | length }})</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Échéance</th><th class="montant">Montant</th></tr></thead>
+    <tbody>{% for e in late %}{{ row(e) }}{% endfor %}</tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="carte">
+  <h2>À venir</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Échéance</th><th class="montant">Montant</th></tr></thead>
+    <tbody>
+    {% for e in upcoming %}{{ row(e) }}{% else %}
+      <tr><td colspan="3" class="discret">Aucune échéance à venir. « Ajouter les échéances habituelles » crée la taxe foncière et la CFE de chaque bien et la déclaration des revenus ; vous pouvez aussi en saisir une ci-dessous.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="carte">
+  <h2>Nouvelle échéance</h2>
+  <form method="post" action="/echeances" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Nature <select name="nature">{% for kind, label in kind_labels.items() %}<option value="{{ kind }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>Date limite <input type="date" name="echeance" required></label>
+    <label>Bien <select name="bien"><option value="">Aucun</option>{% for id, name in properties %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select></label>
+    <label>Précision (facultatif) <input name="precision" maxlength="128" placeholder="avis 2026, 2e acompte…"></label>
+    <label>Montant de l'avis (facultatif) <input name="montant" inputmode="decimal" placeholder="1 234,00"></label>
+    <label>Dont part récupérable sur le locataire (ordures ménagères) <input name="recuperable" inputmode="decimal" placeholder="150,00"></label>
+    <label>Rappel (jours avant) <input type="number" name="rappel" min="0" max="90" value="{{ default_remind }}"></label>
+    <label class="case"><input type="checkbox" name="annuelle" value="1" checked> Revient chaque année</label>
+    <button type="submit">Ajouter l'échéance</button>
+  </form>
+</section>
+
+{% if done %}
+<section class="carte">
+  <h2>Réglées récemment</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Échéance</th><th class="montant">Montant</th></tr></thead>
+    <tbody>{% for e in done %}{{ row(e) }}{% endfor %}</tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

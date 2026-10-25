@@ -1,0 +1,22 @@
+{
+  "baux": [
+    {
+      "id": 1,
+      "type": "rent",
+      "nom": "Studio démo",
+      "bien": "Bien démo",
+      "compte": "Compte courant démo",
+      "mensuel": 85000,
+      "jour_alerte": 5,
+      "jour_impaye": 10,
+      "echeances": [
+        {"id": 2, "mois": "2026-10", "montant": 85000, "recu": 0, "reste_du": 85000, "etat": "attendu"},
+        {"id": 1, "mois": "2026-09", "montant": 85000, "recu": 50000, "reste_du": 35000, "etat": "partiel"}
+      ]
+    }
+  ],
+  "a_valider": [
+    {"id": 7, "bail": "Studio démo", "date": "2026-09-02", "libelle": "VIR SEPA INCONNU", "montant": 85000, "mois": "2026-09"}
+  ],
+  "trop_percus": []
+}

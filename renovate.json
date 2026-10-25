@@ -1,0 +1,108 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Mises à jour des dépendances (DT §5, NF-SEC-08).",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    "docker:pinDigests"
+  ],
+  "timezone": "Europe/Paris",
+  "schedule": [
+    "before 7am on monday"
+  ],
+  "prConcurrentLimit": 5,
+  "labels": [
+    "dépendances"
+  ],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "commitMessageAction": "mise à jour de",
+  "commitMessageExtra": "vers {{#if isMajor}}la v{{{newMajor}}}{{else}}{{{newValue}}}{{/if}}",
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "platformAutomerge": false,
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "description": "Failles connues : correctif proposé tout de suite (sans les 7 jours d'attente) et fusionné automatiquement dès que la CI est verte.",
+    "enabled": true,
+    "labels": [
+      "sécurité"
+    ],
+    "minimumReleaseAge": null,
+    "schedule": [
+      "at any time"
+    ],
+    "automerge": true,
+    "automergeType": "pr"
+  },
+  "pre-commit": {
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 7am on monday"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Correctifs et mineures : fusion automatique après 7 jours et CI verte.",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest",
+        "lockFileMaintenance"
+      ],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Versions majeures : validation manuelle.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "addLabels": [
+        "majeure"
+      ]
+    },
+    {
+      "description": "uv : même version dans le Dockerfile et la CI.",
+      "matchPackageNames": [
+        "astral-sh/uv",
+        "ghcr.io/astral-sh/uv"
+      ],
+      "groupName": "uv"
+    },
+    {
+      "description": "gitleaks : même version dans pre-commit et la CI.",
+      "matchPackageNames": [
+        "gitleaks/gitleaks"
+      ],
+      "groupName": "gitleaks"
+    },
+    {
+      "description": "sops : même version dans la CI et bootstrap.sh.",
+      "matchPackageNames": [
+        "getsops/sops"
+      ],
+      "groupName": "sops"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Versions d'outils épinglées dans les workflows et les scripts de déploiement.",
+      "customType": "regex",
+      "extractVersionTemplate": "^v?(?<version>.+)$",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/",
+        "/^deploy/.+\\.sh$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\s]+)\\s+[A-Za-z_-]+\\s*[:=]\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+      ]
+    }
+  ]
+}

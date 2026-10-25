@@ -1,0 +1,17 @@
+{
+  "mois": "2026-09",
+  "patrimoine": 1495310,
+  "comptes_sans_solde": [],
+  "recettes": 365000,
+  "depenses": -19914,
+  "solde": 345086,
+  "taux_epargne_pour_mille": 945,
+  "recettes_n_1": 0,
+  "depenses_n_1": 0,
+  "categories": [["Non catégorisé", -12535], ["Alimentation", -7379]],
+  "flux_12_mois": [
+    {"mois": "2026-08", "recettes": 365000, "depenses": -18000},
+    {"mois": "2026-09", "recettes": 365000, "depenses": -19914}
+  ],
+  "loyers": [{"bail": "Studio démo", "etat": "partiel", "reste_du": 35000}]
+}

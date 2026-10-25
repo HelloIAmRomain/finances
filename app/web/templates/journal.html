@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Journal des modifications · Finances{% endblock %}
+{% block content %}
+<p><a href="/systeme">← État du système</a></p>
+<h1>Journal des modifications</h1>
+<p>Ce qui a été fait, quand et par qui (vous, une tâche automatique ou l'IA), du plus récent au plus ancien. Le journal ne s'efface pas.</p>
+<form method="get" action="/journal" class="filtres">
+  <label>Domaine <select name="domaine"><option value="">Tous</option>{% for key, label in domains.items() %}<option value="{{ key }}"{% if key == domain %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <button type="submit" class="secondaire">Filtrer</button>
+</form>
+<table>
+  <thead><tr><th>Date</th><th>Action</th><th>Par</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr><td>{{ row.at | datetime_fr }}</td><td>{{ row.label }}<br><span class="discret">{{ row.domain }}</span></td><td>{{ row.author }}</td></tr>
+  {% else %}
+    <tr><td colspan="3" class="discret">Rien dans ce domaine pour l'instant.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if next_before %}<p><a href="/journal?{% if domain %}domaine={{ domain }}&amp;{% endif %}avant={{ next_before }}">Plus ancien →</a></p>{% endif %}
+{% endblock %}

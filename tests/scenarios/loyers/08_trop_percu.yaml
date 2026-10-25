@@ -1,0 +1,10 @@
+nom: Trop-perçu - affectation plafonnée, excédent à décider (CDC §5, L-06)
+etapes:
+  - date: 2026-09-02
+    operations:
+      - {montant: 90000, libelle: "VIR DE ALICE EXEMPLE"}
+    attendu:
+      echeances: {2026-09: paye}
+      alertes: [loyer_trop_percu:info]
+      trop_percu: 5000
+      incidents: [overpaid]

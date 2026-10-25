@@ -1,0 +1,12 @@
+[Unit]
+Description=Finances : déploiement nocturne avec retour arrière automatique
+Documentation=file:///srv/finances/docs/exploitation.md
+Wants=network-online.target
+After=network-online.target docker.service finances-secrets.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/finances/deploy/update.sh
+TimeoutStartSec=30min
+Nice=5

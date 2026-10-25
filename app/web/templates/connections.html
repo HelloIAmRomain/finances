@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Banques · Finances{% endblock %}
+{% block content %}
+<h1>Banques reliées</h1>
+<p class="discret">L'application lit vos comptes sans pouvoir rien y modifier (accès en lecture seule, par le service agréé Enable Banking). Votre banque limite cet accès dans le temps (180 jours environ) : une notification vous prévient 14 jours, 7 jours et la veille de son expiration, et il suffit alors de cliquer sur « Renouveler l'accès » : vos comptes et leur historique sont conservés.</p>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+<table>
+  <thead><tr><th>Banque</th><th>État</th><th>Accès valable jusqu'au</th><th></th></tr></thead>
+  <tbody>
+  {% for c in connections %}
+    <tr>
+      <td>{{ c.institution_name }}</td>
+      <td>{{ connection_labels.get(c.status, c.status) }}</td>
+      <td>{% if c.consent_expires_at %}{{ c.consent_expires_at | date_fr }}{% else %}—{% endif %}</td>
+      <td>{% if c.status != "revoked" %}
+        {% if configured %}
+        <form method="post" action="/connexions/lier" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}"><input type="hidden" name="banque" value="{{ c.institution_name }}"><button type="submit">Renouveler l'accès</button>
+        </form>{% endif %}
+        <form method="post" action="/connexions/{{ c.id }}/revoquer" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Délier cette banque</button>
+        </form>{% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="discret">Aucune banque liée.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Relier une nouvelle banque</h2>
+{% if configured %}
+<form method="post" action="/connexions/lier" class="carte formulaire">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}">
+  <label>Banque
+    <select name="banque" required>{% for name in banks %}<option value="{{ name }}">{{ name }}</option>{% endfor %}</select>
+  </label>
+  <button type="submit">Autoriser l'accès en lecture</button>
+</form>
+<p class="discret">Vous serez redirigé vers votre banque pour vous authentifier, puis ramené ici.</p>
+{% else %}
+<p class="discret">Liaison bancaire non configurée (installation) : ajouter les secrets <code>enable_banking_app_id</code> et <code>enable_banking_private_key</code>.</p>
+{% endif %}
+{% endblock %}

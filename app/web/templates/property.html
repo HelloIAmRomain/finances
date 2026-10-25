@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ bien.name }} · Finances{% endblock %}
+{% block content %}
+<p><a href="/loyers">← Loyers</a></p>
+<h1>{{ bien.name }}</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p>Ce que rapporte et coûte ce bien : loyers encaissés, charges rattachées, part de chaque propriétaire, et les informations imprimées sur les quittances.</p>
+<p class="discret">{% if bien.furnished %}Location meublée{% else %}Location nue{% endif %}{% for label, bp in shares %} · {{ label }} : {{ bp | pourcent }} %{% endfor %}</p>
+
+<section class="carte" id="quittances">
+  <h2>Informations des quittances</h2>
+  <p class="discret">Imprimées sur chaque quittance de loyer : qui loue (le ou les bailleurs, avec leur adresse) et l'adresse du logement loué. Conservées chiffrées.</p>
+  <form method="post" action="/biens/{{ bien.id }}/quittances" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Bailleur(s) et adresse <textarea name="bailleur" rows="3" maxlength="400" placeholder="Prénom Nom et Prénom Nom&#10;1 rue de l'Exemple, 75000 Paris">{{ bien.landlord_enc or "" }}</textarea></label>
+    <label>Adresse du logement loué <textarea name="adresse" rows="3" maxlength="400" placeholder="Appartement 3, 2e étage&#10;3 avenue Fictive, 69000 Lyon">{{ bien.address_enc or "" }}</textarea></label>
+    <button type="submit">Enregistrer les informations des quittances</button>
+  </form>
+</section>
+
+<section class="carte" id="recapitulatif">
+  <h2>Récapitulatif {{ year }}</h2>
+  <table>
+    <thead><tr><th>Poste</th><th class="montant">Total</th>{% for o in summary.owners %}<th class="montant">{{ o.label }} ({{ o.share_bp | pourcent }} %)</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><td>Loyers encaissés <span class="discret">(dus : {{ summary.due_cents | eur }})</span></td><td class="montant positif">{{ summary.received_cents | eur }}</td>{% for o in summary.owners %}<td class="montant">{{ o.received_cents | eur }}</td>{% endfor %}</tr>
+      <tr><td>Charges</td><td class="montant negatif">{{ summary.charges_cents | eur }}</td>{% for o in summary.owners %}<td class="montant">{{ o.charges_cents | eur }}</td>{% endfor %}</tr>
+      <tr><td><strong>Résultat</strong></td><td class="montant {{ summary.result_cents | amount_class }}"><strong>{{ summary.result_cents | eur }}</strong></td>{% for o in summary.owners %}<td class="montant {{ o.result_cents | amount_class }}">{{ o.result_cents | eur }}</td>{% endfor %}</tr>
+    </tbody>
+  </table>
+  {% if summary.recoverable_cents %}<p class="discret">Taxe foncière : {{ summary.recoverable_cents | eur }} récupérables sur le locataire (ordures ménagères).</p>{% endif %}
+  <p class="discret">Indicatif, ni déclaration ni conseil fiscal. {{ summary_sources }}</p>
+  <p><a href="/biens/{{ bien.id }}/recapitulatif.csv?annee={{ year }}" download>Exporter le récapitulatif {{ year }} (CSV)</a></p>
+</section>
+
+<section class="carte">
+  <h2>Charges {{ year }} <span class="discret">({{ total | eur }})</span></h2>
+  <nav class="pagination" aria-label="Année">
+    <a href="/biens/{{ bien.id }}?annee={{ year - 1 }}">← {{ year - 1 }}</a>
+    <a href="/biens/{{ bien.id }}?annee={{ year + 1 }}">{{ year + 1 }} →</a>
+  </nav>
+  {% if totals %}<p>{% for kind, amount in totals.items() %}<span class="badge">{{ expense_labels[kind] }} : {{ amount | eur }}</span> {% endfor %}</p>{% endif %}
+  <table>
+    <thead><tr><th>Date</th><th>Opération</th><th>Nature</th><th class="montant">Montant</th><th></th></tr></thead>
+    <tbody>
+    {% for e in expenses %}
+      <tr><td>{{ e.booking_date | date_fr }}</td><td>{{ e.label }}{% if e.automatic %} <span class="badge">règle</span>{% endif %}</td><td>{{ expense_labels[e.kind] }}</td><td class="montant negatif">{{ e.amount_cents | eur }}</td>
+        <td><form method="post" action="/biens/{{ bien.id }}/charges/{{ e.id }}/retirer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Retirer</button></form></td></tr>
+    {% else %}
+      <tr><td colspan="5" class="discret">Aucune charge rattachée pour {{ year }}.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if debits %}
+  <form method="post" action="/biens/{{ bien.id }}/charges" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Dépense <select name="operation">{% for t in debits %}<option value="{{ t.id }}">{{ t.booking_date | date_fr }} · {{ t.amount_cents | eur }} · {{ t.label[:40] }}</option>{% endfor %}</select></label>
+    <label>Nature <select name="nature">{% for kind, label in expense_labels.items() %}<option value="{{ kind }}">{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Rattacher</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="carte">
+  <h2>Règles de rattachement</h2>
+  <p class="discret">Toute dépense dont le libellé contient le motif est rattachée au bien, à chaque mise à jour. Retirer une charge à la main l'exclut définitivement de la règle.</p>
+  <table>
+    {% for r in rules %}<tr><td>« {{ r.pattern }} »</td><td>{{ expense_labels[r.kind] }}</td></tr>{% else %}<tr><td class="discret">Aucune règle.</td></tr>{% endfor %}
+  </table>
+  <form method="post" action="/biens/{{ bien.id }}/regles" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Motif du libellé <input name="motif" required maxlength="64" placeholder="SYNDIC, TAXE FONCIERE…"></label>
+    <label>Nature <select name="nature">{% for kind, label in expense_labels.items() %}<option value="{{ kind }}">{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Ajouter la règle</button>
+  </form>
+</section>
+{% endblock %}

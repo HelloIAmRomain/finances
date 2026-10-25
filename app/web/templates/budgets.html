@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Budgets · Finances{% endblock %}
+{% block content %}
+<h1>Budgets</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p class="discret">Une enveloppe par mois et par catégorie de dépenses (une catégorie principale compte aussi ses sous-catégories). Une notification part à 80 % puis au dépassement. Les remboursements diminuent la dépense ; seuls les comptes suivis comptent.</p>
+<nav class="pagination" aria-label="Mois">
+  <a href="/budgets?mois={{ previous_month }}">← Mois précédent</a>
+  <strong>{{ month_label | sentence }}</strong>
+  <a href="/budgets?mois={{ next_month }}">Mois suivant →</a>
+</nav>
+
+<section class="carte">
+  <h2>{% if is_current %}Ce mois-ci{% else %}{{ month_label | sentence }}{% endif %}{% if statuses %} <span class="discret">({{ total_spent | eur }} sur {{ total_budget | eur }})</span>{% endif %}</h2>
+  <table>
+    <thead><tr><th>Catégorie</th><th>Consommé</th><th class="montant">Dépensé</th><th class="montant">Reste</th><th></th></tr></thead>
+    <tbody>
+    {% for s in statuses %}
+      <tr>
+        <td>{{ s.name }}{% if averages.get(s.category_id) %}<br><span class="discret">moyenne sur 3 mois : {{ averages[s.category_id] | eur }}</span>{% endif %}</td>
+        <td><meter class="budget" min="0" max="100" low="80" high="100" optimum="0" value="{{ [s.percent, 100] | min }}" aria-label="{{ s.percent }} % du budget">{{ s.percent }} %</meter><br><span class="{{ 'negatif' if s.level == 'depasse' else 'discret' }}">{{ s.percent }} %{% if s.level == 'depasse' %} : dépassé{% endif %}</span></td>
+        <td class="montant">{{ s.spent_cents | eur }}<br><span class="discret">sur {{ s.monthly_cents | eur }}</span></td>
+        <td class="montant {{ s.remaining_cents | amount_class }}">{{ s.remaining_cents | eur }}</td>
+        <td><form method="post" action="/budgets/{{ s.id }}/supprimer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Supprimer</button></form></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="discret">Aucun budget. Choisissez une catégorie ci-dessous ; la moyenne de vos dépenses des trois derniers mois aide à fixer le montant.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="carte">
+  <h2>Définir ou modifier un budget</h2>
+  {% if suggestions %}<p class="discret">Vos plus grosses dépenses sans budget (moyenne sur 3 mois) : {% for label, average, cid in suggestions %}{{ label }} {{ average | eur }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
+  <form method="post" action="/budgets" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Catégorie
+      <select name="categorie">
+        {% for s in statuses %}<option value="{{ s.category_id }}">{{ s.name }} (budget actuel)</option>{% endfor %}
+        {% for cid, label in choices %}<option value="{{ cid }}">{{ label }}{% if averages.get(cid) %} · moyenne {{ averages[cid] | eur }}{% endif %}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Montant par mois <input name="montant" inputmode="decimal" required placeholder="400,00"></label>
+    <button type="submit">Enregistrer le budget</button>
+  </form>
+</section>
+{% endblock %}

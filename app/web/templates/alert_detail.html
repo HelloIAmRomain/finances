@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Alerte · Finances{% endblock %}
+{% block content %}
+<h1>{{ alert.title }}</h1>
+<p><strong>{{ severities[alert.severity] }}</strong> · {{ statuses[alert.status] }} · ouverte le {{ alert.opened_at | datetime_fr }}{% if alert.resolved_at %} · résolue le {{ alert.resolved_at | datetime_fr }}{% endif %}</p>
+{% if alert.details %}
+<dl class="carte">
+  {% for key, value in alert.details.items() %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}
+</dl>
+{% endif %}
+{% set links = {"deadline": "/echeances/", "lease": "/loyers/", "account": "/prevision#", "connection": "/connexions#", "budget": "/budgets#"} %}
+{% if alert.subject_type in links %}
+{# nosemgrep: var-in-href (préfixes constants ci-dessus, identifiant entier) #}
+<p><a class="bouton" href="{{ links[alert.subject_type] }}{{ alert.subject_id | int }}">Voir {{ {"deadline": "l'échéance", "lease": "le bail", "account": "la prévision des comptes", "connection": "la banque", "budget": "les budgets"}[alert.subject_type] }}</a></p>
+{% endif %}
+{% if alert.status != "resolved" %}
+<form method="post" action="/alertes/{{ alert.id }}/resoudre">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Résoudre</button>
+</form>
+{% endif %}
+<p><a href="/alertes">Toutes les alertes</a></p>
+{% endblock %}

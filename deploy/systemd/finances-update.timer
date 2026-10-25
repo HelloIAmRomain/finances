@@ -1,0 +1,10 @@
+[Unit]
+Description=Finances : déploiement nocturne
+
+[Timer]
+OnCalendar=*-*-* 03:05
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

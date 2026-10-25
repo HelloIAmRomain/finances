@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Import terminé · Finances{% endblock %}
+{% block content %}
+<h1>Import terminé</h1>
+<ul>
+  <li>{{ resultat.stats.inserted }} nouvelle(s) opération(s) sur {{ resultat.stats.seen }} lue(s).</li>
+  <li>{{ resultat.stats.duplicates }} déjà présente(s), ignorée(s).</li>
+  <li>{{ resultat.duplicates_confirmed }} opération(s) déjà reçue(s) de la banque, reconnue(s) automatiquement{% if resultat.duplicates_proposed %}, {{ resultat.duplicates_proposed }} à valider (<a href="/a-valider">page À valider</a>){% endif %}.</li>
+</ul>
+<p><a href="/transactions">Voir les opérations</a> · <a href="/import">Importer un autre relevé</a></p>
+{% endblock %}

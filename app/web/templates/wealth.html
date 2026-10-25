@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Patrimoine · Finances{% endblock %}
+{% block content %}
+<h1>Patrimoine</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p class="discret">Les comptes reliés ou importés sont additionnés seuls. Ajoutez ici ce qui ne l'est pas : livrets, assurance-vie, PEA, bien immobilier (votre part s'il est en indivision), crédit en cours (capital restant dû), prêt accordé. Mettez à jour la valeur quand vous recevez un relevé : l'historique montre l'évolution.</p>
+
+<div class="tuiles">
+  <div class="carte"><span class="discret">Patrimoine net</span><br><strong class="{{ wealth.total_cents | amount_class }}">{{ wealth.total_cents | eur }}</strong></div>
+  <div class="carte"><span class="discret">Comptes suivis</span><br><strong>{{ wealth.accounts_cents | eur }}</strong></div>
+  <div class="carte"><span class="discret">Actifs saisis</span><br><strong class="positif">{{ wealth.assets_cents | eur }}</strong></div>
+  <div class="carte"><span class="discret">Dettes</span><br><strong class="negatif">{{ wealth.debts_cents | eur }}</strong></div>
+</div>
+
+<section class="carte">
+  <h2>Actifs et dettes</h2>
+  <table>
+    <thead><tr><th>Nom</th><th class="montant">Valeur</th><th>Mettre à jour</th></tr></thead>
+    <tbody>
+    {% for a in assets %}
+      <tr>
+        <td>{{ a.name }}{% if not a.counted %} <span class="badge">non additionné</span>{% endif %}<br><span class="discret">{{ kind_labels[a.kind] }}{% if a.property_name %} · {{ a.property_name }}{% endif %}</span>
+          {% if a.history | length > 1 %}<details><summary class="discret">Historique</summary><ul>{% for v in a.history %}<li>{{ v.as_of_date | date_fr }} : {{ v.value_cents | eur }}</li>{% endfor %}</ul></details>{% endif %}</td>
+        <td class="montant">{% if a.latest %}<span class="{{ a.latest.value_cents | amount_class }}">{{ a.latest.value_cents | eur }}</span><br><span class="discret">au {{ a.latest.as_of_date | date_fr }}{% if a.change_cents %} · {{ "+" if a.change_cents > 0 }}{{ a.change_cents | eur }}{% endif %}</span>{% else %}<span class="discret">pas de valeur</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/patrimoine/{{ a.id }}/valeur" class="en-ligne">
+            <input type="hidden" name="csrf" value="{{ user.csrf }}">
+            <input name="valeur" inputmode="decimal" size="9" required aria-label="Nouvelle valeur de {{ a.name }}" placeholder="valeur">
+            <input name="date_valeur" type="date" value="{{ today.isoformat() }}" aria-label="Date de la valeur">
+            <button type="submit" class="secondaire">Enregistrer la valeur</button>
+          </form>
+          <form method="post" action="/patrimoine/{{ a.id }}/archiver" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Archiver</button></form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3" class="discret">Rien de saisi pour l'instant.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="carte">
+  <h2>Ajouter</h2>
+  <form method="post" action="/patrimoine" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Nom <input name="nom" required maxlength="128" placeholder="Livret A, assurance-vie…"></label>
+    <label>Nature <select name="nature">{% for kind, label in kind_labels.items() %}<option value="{{ kind }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>Valeur aujourd'hui (facultatif) <input name="valeur" inputmode="decimal" placeholder="10 000,00"></label>
+    {% if properties %}<label>Bien concerné (facultatif) <select name="bien"><option value="">Aucun</option>{% for id, name in properties %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select></label>{% endif %}
+    <label class="case"><input type="checkbox" name="compte" value="1" checked> Compter dans le patrimoine net</label>
+    <button type="submit">Ajouter au patrimoine</button>
+  </form>
+</section>
+{% endblock %}

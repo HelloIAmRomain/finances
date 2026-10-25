@@ -1,0 +1,7 @@
+description: Deux opérations identiques de la même source ne sont jamais des doublons entre sources.
+imports:
+  - source: enable_banking
+    transactions:
+      - {id: a1, external_id: E1, date: 2026-09-03, amount: -250, label: CB CAFE}
+      - {id: a2, external_id: E2, date: 2026-09-03, amount: -250, label: CB CAFE}
+expected_links: []

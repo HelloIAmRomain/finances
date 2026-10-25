@@ -1,0 +1,14 @@
+description: Un import CSV d'historique chevauche la synchro API ; seule l'opération hors API reste.
+imports:
+  - source: enable_banking
+    transactions:
+      - {id: api_pain, external_id: E1, date: 2026-09-03, amount: -420, label: CB BOULANGERIE}
+      - {id: api_loyer, external_id: E2, date: 2026-09-05, amount: 85000, label: VIR SEPA LOYER}
+  - source: csv
+    transactions:
+      - {id: csv_pain, date: 2026-09-03, amount: -420, label: CARTE 02/09 BOULANGERIE}
+      - {id: csv_loyer, date: 2026-09-05, amount: 85000, label: VIR LOYER SEPTEMBRE}
+      - {id: csv_ancien, date: 2026-08-20, amount: -1000, label: CB LIBRAIRIE}
+expected_links:
+  - {canonical: api_pain, duplicate: csv_pain, reason: exact, status: confirmed, mode: auto}
+  - {canonical: api_loyer, duplicate: csv_loyer, reason: exact, status: confirmed, mode: auto}

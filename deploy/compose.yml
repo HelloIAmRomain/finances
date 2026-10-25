@@ -1,0 +1,82 @@
+# Pile applicative sur le Raspberry Pi (DT §5).
+# - Ports publiés uniquement sur 127.0.0.1 : l'accès distant passe par `tailscale serve` (inv. 7).
+# - Aucun conteneur privilégié ni socket Docker monté (inv. 11).
+# - L'image applicative est fournie épinglée par condensat par deploy/update.sh (FINANCES_IMAGE).
+# Sauvegarde : restic sur l'hôte (deploy/backup.sh, timers systemd), hors de cette pile.
+name: finances
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: [/tmp]
+
+x-app: &app
+  <<: *hardening
+  image: ${FINANCES_IMAGE:?FINANCES_IMAGE requis (image épinglée par condensat)}
+  user: "10001:10001"
+  environment:
+    FINANCES_DATABASE_PATH: /data/finances.db
+    FINANCES_PUBLIC_BASE_URL: ${FINANCES_PUBLIC_BASE_URL:-https://finances.invalid}
+    FINANCES_BACKUP_EXPECTED: ${FINANCES_BACKUP_EXPECTED:-false}
+    FINANCES_NTFY_PUBLIC_URL: ${NTFY_BASE_URL:-}
+  volumes:
+    - ${FINANCES_DATA_DIR:-/srv/finances/data}:/data
+    - ${FINANCES_SECRETS_DIR:-/run/finances/secrets}:/run/secrets:ro
+
+services:
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    mem_limit: 256m
+
+  web:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${FINANCES_WEB_PORT:-8000}:8000"
+    mem_limit: 512m
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "app.ops.worker"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+    stop_grace_period: 30s
+    mem_limit: 768m
+
+  ntfy:
+    <<: *hardening
+    image: binwiederhier/ntfy:v2.28.0@sha256:6ef4b819f722fccdc036af611c4774cfdc2de821ab74fdd48bbf4c9d6f8973da
+    command: ["serve"]
+    user: "10002:10002"
+    restart: unless-stopped
+    environment:
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://127.0.0.1:8080}
+      NTFY_LISTEN_HTTP: ":8080"
+      NTFY_BEHIND_PROXY: "true"
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/user.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_WEB_ROOT: disable
+      NTFY_ENABLE_SIGNUP: "false"
+    volumes:
+      - ${FINANCES_NTFY_DIR:-/srv/finances/ntfy}:/var/lib/ntfy
+    ports:
+      - "127.0.0.1:${FINANCES_NTFY_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 -O - http://127.0.0.1:8080/v1/health | grep -q '\"healthy\":true'"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    mem_limit: 128m

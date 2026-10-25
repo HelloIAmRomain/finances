@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Affecter une opération · Finances{% endblock %}
+{% block content %}
+<p><a href="/loyers/{{ lease.id }}">← {{ lease.label }}</a></p>
+<h1>Affecter une opération à {{ due.period }}</h1>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p class="discret">Échéance de {{ due.amount_cents | eur }}, reste dû {{ due.remaining_cents | eur }}. Seuls les encaissements dont une part n'est pas encore affectée sont proposés.</p>
+<form method="get" class="carte filtres">
+  <label>Compte
+    <select name="compte">
+      <option value="bail"{% if not all_accounts %} selected{% endif %}>{{ lease.account_name }} (compte du bail)</option>
+      <option value="tous"{% if all_accounts %} selected{% endif %}>Tous les comptes suivis</option>
+    </select>
+  </label>
+  <label>Du <input name="du" type="date" value="{{ search.date_from.isoformat() if search.date_from else '' }}"></label>
+  <label>Au <input name="au" type="date" value="{{ search.date_to.isoformat() if search.date_to else '' }}"></label>
+  <label>Libellé <input name="texte" value="{{ search.text or '' }}"></label>
+  <label>Montant exact <input name="montant" inputmode="decimal" class="court" value="{{ search.amount_cents | saisie if search.amount_cents else '' }}"></label>
+  <button type="submit">Rechercher</button>
+</form>
+<table>
+  <thead><tr><th>Date</th><th>Opération</th><th class="montant">Montant</th><th>Affecter</th></tr></thead>
+  <tbody>
+  {% for t in results %}
+    <tr>
+      <td>{{ t.booking_date | date_fr }}</td>
+      <td>{{ t.label }}<br><span class="discret">{{ t.account }}{% if t.available_cents != t.amount_cents %} · disponible {{ t.available_cents | eur }}{% endif %}</span></td>
+      <td class="montant positif">{{ t.amount_cents | eur }}</td>
+      <td>
+        <form method="post" action="/loyers/{{ lease.id }}/affecter" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}">
+          <input type="hidden" name="echeance" value="{{ due.id }}">
+          <input type="hidden" name="operation" value="{{ t.id }}">
+          <input type="hidden" name="retour" value="{{ here }}">
+          <input name="montant" inputmode="decimal" placeholder="tout" aria-label="Montant (vide : le maximum)" class="court">
+          <input name="note" placeholder="justification" aria-label="Justification d'un écart">
+          <button type="submit">Affecter</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="discret">Aucun encaissement disponible pour ces critères. Élargissez la période ou choisissez « Tous les comptes suivis ».</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

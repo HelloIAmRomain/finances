@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Alertes · Finances{% endblock %}
+{% block content %}
+<h1>Alertes</h1>
+<p class="discret">Ce qui demande votre attention : loyer en retard, banque à reconnecter, budget dépassé, sauvegarde en panne… Une notification part sur votre téléphone à l'ouverture de chaque alerte.</p>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<h2>En cours</h2>
+<table>
+  <thead><tr><th>Gravité</th><th>Alerte</th><th>Ouverte le</th><th>État</th><th></th></tr></thead>
+  <tbody>
+  {% for a in current %}
+    <tr class="gravite-{{ a.severity }}">
+      <td>{{ severities[a.severity] }}</td>
+      <td><a href="/alertes/{{ a.id }}">{{ a.title }}</a></td>
+      <td>{{ a.opened_at | datetime_fr }}</td>
+      <td>{{ statuses[a.status] }}</td>
+      <td>
+        <form method="post" action="/alertes/{{ a.id }}/resoudre" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Résoudre</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="discret">Aucune alerte en cours.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<h2>Résolues récemment</h2>
+<ul>
+{% for a in resolved %}
+  <li class="discret"><a href="/alertes/{{ a.id }}">{{ a.title }}</a> — résolue le {{ a.resolved_at | datetime_fr }}</li>
+{% else %}
+  <li class="discret">Aucune.</li>
+{% endfor %}
+</ul>
+<section class="carte" id="telephone">
+  <h2>Notifications sur le téléphone</h2>
+  {% if phone_ready %}
+  <p>Envoi configuré : les alertes partent vers l'application <strong>ntfy</strong> du téléphone, abonnée au sujet <strong>{{ topic }}</strong>.</p>
+  {% else %}
+  <p class="negatif">Envoi non configuré : les alertes restent visibles ici mais ne partent pas sur le téléphone.</p>
+  <p class="discret">Pour l'activer, suivez « Notifications sur le téléphone » dans le guide d'exploitation (création de l'accès d'envoi sur le Raspberry Pi, puis secret <code>ntfy_token</code>).</p>
+  {% endif %}
+  <p class="discret">Sur le téléphone : installez l'application ntfy, ajoutez le serveur <strong>{{ ntfy_public }}</strong> avec l'utilisateur prévu pour le téléphone, abonnez-vous au sujet <strong>{{ topic }}</strong>, et laissez Tailscale actif. Les notifications ne contiennent ni montant ni nom ; touchez-en une pour ouvrir l'alerte.</p>
+  {% if channels %}
+  <form method="post" action="/alertes/essai" class="en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Envoyer une notification d'essai</button>
+  </form>
+  {% endif %}
+</section>
+<section class="carte" id="heures-silencieuses">
+  <h2>Heures silencieuses</h2>
+  <p class="discret">Pendant cette plage (heure de Paris), seules les alertes critiques (loyer impayé, sauvegarde en panne…) vous notifient ; les autres attendent la fin de la plage et arrivent regroupées en un seul message.</p>
+  <form method="post" action="/alertes/heures-silencieuses" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label class="case"><input type="checkbox" name="actif" value="1"{% if quiet.enabled %} checked{% endif %}> Activées</label>
+    <label>De <input type="time" name="debut" value="{{ quiet.start.strftime('%H:%M') }}" required></label>
+    <label>À <input type="time" name="fin" value="{{ quiet.end.strftime('%H:%M') }}" required></label>
+    <button type="submit">Enregistrer les heures silencieuses</button>
+  </form>
+</section>
+<section class="carte" id="bilan">
+  <h2>Bilan de la semaine</h2>
+  <p class="discret">Chaque lundi vers 8 h : patrimoine, dépenses des 7 derniers jours, budgets à surveiller, loyers du mois, alertes en cours et échéances des deux semaines à venir.</p>
+  <form method="post" action="/alertes/bilan" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label class="case"><input type="checkbox" name="actif" value="1"{% if digest %} checked{% endif %}> Recevoir le bilan hebdomadaire</label>
+    <button type="submit">Enregistrer</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Redirection vers la banque · Finances{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="0;url={{ url }}">{% endblock %}
+{% block content %}
+<h1>Redirection vers votre banque…</h1>
+<p class="carte">Si rien ne se passe, {# nosemgrep: var-in-href (adresse vérifiée en https:// par la route) #}<a href="{{ url }}" rel="noreferrer">continuer vers {{ banque }}</a>.</p>
+{% endblock %}

@@ -1,0 +1,21 @@
+nom: Rejet puis régularisation - le rejet n'annule jamais le paiement suivant (inv. 3)
+etapes:
+  - date: 2026-09-01
+    operations:
+      - {montant: 85000, libelle: "VIR DE ALICE EXEMPLE"}
+  - date: 2026-09-03
+    operations:
+      - {montant: -85000, libelle: "REJET VIREMENT ALICE EXEMPLE"}
+    attendu:
+      echeances: {2026-09: attendu}
+      incidents: [rejected]
+  - date: 2026-09-04
+    operations:
+      - {montant: 85000, libelle: "VIR DE ALICE EXEMPLE REGULARISATION"}
+    attendu:
+      echeances: {2026-09: paye}
+  - date: 2026-09-20
+    attendu:
+      echeances: {2026-09: paye}
+      alertes: [loyer_rejete:critical]
+      incidents: [rejected]

@@ -1,0 +1,16 @@
+nom: Remboursement de prêt d'un proche - mêmes alertes que les loyers (Q17)
+bail: {type: loan, loyer: 20000, charges: 0}
+payeurs:
+  - {role: borrower, nom: Chloé Démo, motifs: ["CHLOE DEMO"]}
+etapes:
+  - date: 2026-09-05
+    attendu:
+      echeances: {2026-09: en_retard}
+      alertes: [loyer_retard:warning]
+  - date: 2026-09-07
+    operations:
+      - {montant: 20000, libelle: "VIR DE CHLOE DEMO REMBOURSEMENT"}
+    attendu:
+      echeances: {2026-09: paye}
+      alertes: []
+      incidents: [late]

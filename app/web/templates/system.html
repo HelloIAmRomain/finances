@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}État du système · Finances{% endblock %}
+{% block content %}
+<h1>État du système</h1>
+<p>Ce que fait le Raspberry Pi en arrière-plan : mises à jour des banques, rapprochements, notifications, entretien. Une ligne « en échec » qui persiste mérite un coup d'œil.</p>
+
+<section class="carte">
+  <h2>Base de données</h2>
+  <p>Taille actuelle : <strong>{{ size }}</strong>.</p>
+  <p class="discret">{% if maintenance %}Dernier entretien automatique le {{ (maintenance.finished_at or maintenance.started_at) | datetime_fr }}{% if maintenance.stats.get("compactee") %} (base compactée){% endif %}.{% else %}Premier entretien automatique cette nuit vers 4 h 20.{% endif %} Chaque nuit, la base est optimisée et l'historique technique de plus de 90 jours est effacé ; elle est compactée quand beaucoup de place est libre.</p>
+</section>
+
+<section class="carte">
+  <h2>Tâches automatiques{% if failed %} <span class="etat etat-impaye">{{ failed }} en échec</span>{% endif %}</h2>
+  <table>
+    <thead><tr><th>Tâche</th><th>Dernière exécution</th><th>Résultat</th></tr></thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr><td>{{ job.label }}</td><td>{{ job.at | datetime_fr }}</td><td><span class="etat etat-{{ job.state }}">{{ job.status }}</span></td></tr>
+    {% else %}
+      <tr><td colspan="3" class="discret">Aucune tâche exécutée pour l'instant : le service d'arrière-plan (worker) n'a pas encore démarré.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="carte">
+  <h2>Journal des modifications</h2>
+  <p>Tout ce qui a été fait, par vous, automatiquement ou par l'IA : <a href="/journal">ouvrir le journal</a>. Les modifications faites par l'IA s'annulent depuis <a href="/ia/modifications">Modifications par l'IA</a>.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "E-0001",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "4.20"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-03",
+      "value_date": "2026-09-03",
+      "creditor": {
+        "name": "BOULANGERIE EXEMPLE"
+      },
+      "creditor_account": null,
+      "remittance_information": [
+        "CARTE 02/09 BOULANGERIE EXEMPLE"
+      ],
+      "bank_transaction_code": {
+        "code": "PMNT",
+        "sub_code": "CCRD"
+      }
+    },
+    {
+      "entry_reference": "E-0002",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "850.00"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-09-05",
+      "value_date": "2026-09-05",
+      "debtor": {
+        "name": "ALICE EXEMPLE"
+      },
+      "debtor_account": {
+        "iban": "FR4399999000010000000030100"
+      },
+      "remittance_information": [
+        "LOYER SEPTEMBRE"
+      ],
+      "bank_transaction_code": {
+        "code": "RCDT"
+      }
+    },
+    {
+      "entry_reference": "E-0003",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "12.00"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "booking_date": null,
+      "value_date": "2026-09-27",
+      "remittance_information": [
+        "CARTE EN ATTENTE"
+      ]
+    }
+  ],
+  "continuation_key": "page-2"
+}

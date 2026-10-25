@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_tx.html" import tx %}
+{% block title %}À valider · Finances{% endblock %}
+{% block content %}
+{% set category_names = dict(categories) %}
+<h1>À valider</h1>
+{% for item in items %}
+<section class="carte">
+  <h2>{{ labels[item.kind] }}</h2>
+  {% if item.kind == "ai_suggestion" %}
+  {% set suggested = item.details.get('categorie') %}
+  <div class="paire">{{ tx(item.second, "Opération") }}
+    <div><p>{% if suggested %}L'IA propose <strong>{{ category_names.get(suggested, "?") }}</strong> (confiance {{ item.details.get('confiance', 0) // 10 }} %).{% else %}L'IA n'a pas trouvé de catégorie.{% endif %}</p></div>
+  </div>
+  <form method="post" action="/a-valider/suggestions/{{ item.id }}" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    {% if suggested %}<button type="submit" name="decision" value="accepter">Accepter</button>{% endif %}
+    <label>ou <select name="categorie">{% for cid, label in categories %}<option value="{{ cid }}"{% if cid == suggested %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit" name="decision" value="autre"{% if suggested %} class="secondaire"{% endif %}>Choisir cette catégorie</button>
+    <label class="case"><input type="checkbox" name="regle" value="1"> Créer une règle pour les opérations semblables</label>
+    <button type="submit" name="decision" value="ignorer" class="secondaire">Laisser sans catégorie</button>
+  </form>
+  {% else %}
+  <div class="paire">
+    {% if item.kind == "transfer_candidate" %}
+      {{ tx(item.first, "Crédit") }}{{ tx(item.second, "Débit") }}
+    {% else %}
+      {{ tx(item.first, "Opération conservée") }}{{ tx(item.second, "Doublon") }}
+    {% endif %}
+  </div>
+  <div class="actions">
+  {% set link = item.details.get('transfer_link_id') %}
+  {% if item.kind == "duplicate" %}
+    {% for decision, texte in [("confirmer", "C'est un doublon"), ("rejeter", "Ce sont deux opérations")] %}
+    <form method="post" action="/a-valider/doublons/{{ item.duplicate_link_id }}/{{ decision }}">
+      <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">{{ texte }}</button>
+    </form>
+    {% endfor %}
+  {% elif item.kind == "transfer_candidate" %}
+    {% for decision, texte in [("confirmer", "C'est un virement interne"), ("rejeter", "Non")] %}
+    <form method="post" action="/a-valider/virements/{{ link }}/{{ decision }}">
+      <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">{{ texte }}</button>
+    </form>
+    {% endfor %}
+  {% elif item.kind == "category_conflict" %}
+    {% for choix, texte in [("conservee", "Garder la catégorie de l'opération conservée"), ("doublon", "Prendre celle du doublon")] %}
+    <form method="post" action="/a-valider/conflits/{{ item.id }}/categorie">
+      <input type="hidden" name="csrf" value="{{ user.csrf }}"><input type="hidden" name="choix" value="{{ choix }}"><button type="submit">{{ texte }}</button>
+    </form>
+    {% endfor %}
+  {% else %}
+    <form method="post" action="/a-valider/conflits/{{ item.id }}/virement">
+      <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Garder le virement actuel</button>
+    </form>
+  {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% else %}
+<p class="discret">Rien à valider.</p>
+{% endfor %}
+
+<h2>Doublons reconnus récemment</h2>
+<p class="discret">Reconnus automatiquement ou validés. Annuler rétablit exactement l'état antérieur.</p>
+<ul>
+{% for link in recent %}
+  <li>Lien n° {{ link.id }} ({{ link.reason }}, {{ "automatique" if link.mode == "auto" else "validé" }}{% if link.decided_at %}, {{ link.decided_at | datetime_fr }}{% endif %})
+    <form method="post" action="/a-valider/doublons/{{ link.id }}/annuler" class="en-ligne">
+      <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Annuler</button>
+    </form>
+  </li>
+{% else %}
+  <li class="discret">Aucun.</li>
+{% endfor %}
+</ul>
+{% endblock %}

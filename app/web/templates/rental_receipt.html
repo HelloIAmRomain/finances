@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Quittance {{ r.period }} · Finances{% endblock %}
+{% block content %}
+<p><a href="/loyers/{{ r.lease_id }}">← Bail</a></p>
+<h1>Quittance de loyer</h1>
+<p>Vérifiez la quittance du mois, puis téléchargez-la en PDF pour la remettre au locataire (e-mail, impression…). Rien n'est envoyé par l'application.</p>
+<section class="carte">
+  <h2>Période du {{ r.period_start | date_fr }} au {{ r.period_end | date_fr }}</h2>
+  <p><strong>Bailleur</strong><br>{% for line in r.landlord.splitlines() %}{{ line }}<br>{% endfor %}</p>
+  <p><strong>Locataire</strong><br>{{ r.tenants | join(" et ") }}</p>
+  <p><strong>Logement loué{% if r.furnished %} (location meublée){% endif %}</strong><br>{% for line in r.address.splitlines() %}{{ line }}<br>{% endfor %}</p>
+  <table>
+    <tbody>
+      <tr><td>Loyer hors charges</td><td class="montant">{{ r.rent_cents | eur }}</td></tr>
+      <tr><td>Provision pour charges</td><td class="montant">{{ r.charges_cents | eur }}</td></tr>
+      <tr><td><strong>Total reçu</strong></td><td class="montant"><strong>{{ r.total_cents | eur }}</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="discret">Réglé en totalité le {{ r.paid_on | date_fr }} ; quittance établie le {{ issued_on | date_fr }}. Une erreur de nom ou d'adresse se corrige sur la <a href="/biens/{{ r.property_id }}#quittances">fiche du bien</a>.</p>
+  <p><a class="bouton" href="/loyers/{{ r.lease_id }}/echeances/{{ r.due_id }}/quittance.pdf" download>Télécharger la quittance (PDF)</a></p>
+</section>
+{% endblock %}

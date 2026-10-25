@@ -1,0 +1,8 @@
+{
+  "total": 2,
+  "page": 1,
+  "transactions": [
+    {"id": 11, "date": "2026-09-16", "compte": "Compte courant démo", "libelle": "SUPERMARCHE DEMO", "montant": -7379, "categories": ["Alimentation › Courses"], "virement_interne": false},
+    {"id": 12, "date": "2026-09-13", "compte": "Compte courant démo", "libelle": "SALAIRE DEMO", "montant": 280000, "categories": [], "virement_interne": false}
+  ]
+}

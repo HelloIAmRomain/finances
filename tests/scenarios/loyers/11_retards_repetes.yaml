@@ -1,0 +1,16 @@
+nom: Deux retards sur six mois glissants - point de vigilance (CDC §5)
+etapes:
+  - date: 2026-09-06
+    operations:
+      - {montant: 85000, libelle: "VIR DE ALICE EXEMPLE"}
+    attendu:
+      echeances: {2026-09: paye}
+      incidents: [late]
+      alertes: []
+  - date: 2026-10-07
+    operations:
+      - {montant: 85000, libelle: "VIR DE ALICE EXEMPLE"}
+    attendu:
+      echeances: {2026-10: paye}
+      incidents: [late, late]
+      alertes: [bail_retards_repetes:warning]

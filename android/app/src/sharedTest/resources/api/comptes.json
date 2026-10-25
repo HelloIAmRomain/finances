@@ -1,0 +1,34 @@
+[
+  {
+    "id": 2,
+    "nom": "Compte courant démo",
+    "type": "checking",
+    "banque": "Banque Exemple",
+    "connexion": "active",
+    "consentement_jusqu_au": "2027-03-27T10:00:00Z",
+    "derniere_synchro": "2026-09-28T19:25:00Z",
+    "derniere_erreur": null,
+    "solde": 245310,
+    "solde_type": "booked",
+    "solde_date": "2026-09-26",
+    "compte": true,
+    "synchros_par_jour": 4,
+    "synchro_manuelle_impossible": null
+  },
+  {
+    "id": 3,
+    "nom": "Carte démo",
+    "type": "card",
+    "banque": "Banque Exemple",
+    "connexion": "active",
+    "consentement_jusqu_au": "2027-03-27T10:00:00Z",
+    "derniere_synchro": "2026-09-28T19:25:00Z",
+    "derniere_erreur": null,
+    "solde": -4520,
+    "solde_type": "other",
+    "solde_date": "2026-09-26",
+    "compte": false,
+    "synchros_par_jour": 2,
+    "synchro_manuelle_impossible": "Une synchro manuelle par quart d'heure : nouvel essai possible dans 12 min."
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "transactions": [
+    {
+      "transaction_id": "T-9",
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "35.90"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-10",
+      "creditor": {
+        "name": "ASSURANCE EXEMPLE"
+      },
+      "creditor_account": {
+        "iban": "FR5999999000010000000030200"
+      },
+      "remittance_information": [
+        "PRLV SEPA ASSURANCE",
+        "ECH/100926"
+      ]
+    },
+    {
+      "transaction_amount": {
+        "currency": "EUR",
+        "amount": "1102.35"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-12",
+      "remittance_information": []
+    }
+  ],
+  "continuation_key": null
+}

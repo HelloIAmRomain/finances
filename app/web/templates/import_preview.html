@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Aperçu de l'import · Finances{% endblock %}
+{% block content %}
+<h1>Aperçu : {{ nom_fichier }}</h1>
+<p>{{ total }} opération(s) lue(s), total {{ somme | eur }}.{% if total > apercu | length %} Seules les {{ apercu | length }} premières sont affichées.{% endif %}</p>
+<table>
+  <thead><tr><th>Date</th><th>Libellé</th><th class="montant">Montant</th></tr></thead>
+  <tbody>
+  {% for tx in apercu %}
+    <tr><td>{{ tx.booking_date | date_fr }}</td><td>{{ tx.label }}</td><td class="montant {{ tx.amount | amount_class }}">{{ tx.amount | eur }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<form method="post" action="/import/confirmer" class="formulaire">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}">
+  <input type="hidden" name="compte" value="{{ compte }}">
+  <input type="hidden" name="format" value="{{ format }}">
+  <input type="hidden" name="nom_fichier" value="{{ nom_fichier }}">
+  <input type="hidden" name="contenu" value="{{ contenu }}">
+  <input type="hidden" name="empreinte" value="{{ empreinte }}">
+  <button type="submit">Confirmer l'import</button>
+</form>
+<p><a href="/import">Annuler</a></p>
+{% endblock %}

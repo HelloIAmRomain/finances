@@ -1,0 +1,15 @@
+nom: Loyer complet depuis un émetteur inconnu - validation manuelle (CDC §9)
+etapes:
+  - date: 2026-09-02
+    operations:
+      - {montant: 85000, libelle: "VIR SEPA M INCONNU"}
+    attendu:
+      echeances: {2026-09: attendu}
+      alertes: [loyer_a_valider:info]
+      propositions: 1
+  - date: 2026-09-03
+    actions: [confirmer]
+    attendu:
+      echeances: {2026-09: paye}
+      alertes: []
+      propositions: 0

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Connexion · Finances{% endblock %}
+{% block head %}<script src="/static/cle-securite.js" defer></script>{% endblock %}
+{% block content %}
+<h1>Connexion</h1>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+<form method="post" action="/connexion" class="carte formulaire">
+  <input type="hidden" name="suivant" value="{{ suivant }}">
+  <label>Identifiant <input name="identifiant" autocomplete="username" required></label>
+  <label>Mot de passe <input name="mot_de_passe" type="password" autocomplete="current-password" required></label>
+  <label>Code à 6 chiffres <input name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code"></label>
+  <button type="submit">Se connecter avec le code</button>
+  <p class="discret">ou</p>
+  <button type="button" id="connexion-cle" class="secondaire">Se connecter avec ma clé de sécurité</button>
+  <p id="statut-cle" role="status" hidden></p>
+</form>
+{% endblock %}
