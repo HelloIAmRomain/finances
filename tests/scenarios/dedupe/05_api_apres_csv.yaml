@@ -1,0 +1,10 @@
+description: L'historique CSV est importé avant la liaison bancaire ; l'API reste canonique.
+imports:
+  - source: csv
+    transactions:
+      - {id: csv, date: 2026-09-03, amount: -420, label: CARTE BOULANGERIE}
+  - source: enable_banking
+    transactions:
+      - {id: api, external_id: E1, date: 2026-09-03, amount: -420, label: CB BOULANGERIE}
+expected_links:
+  - {canonical: api, duplicate: csv, reason: exact, status: confirmed, mode: auto}

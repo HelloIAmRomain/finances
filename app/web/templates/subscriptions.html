@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Abonnements · Finances{% endblock %}
+{% macro rows(series, debit) %}
+<table>
+  <thead><tr><th>Libellé</th><th>Fréquence</th><th class="montant">Montant</th><th class="montant">Par mois</th><th>Prochaine</th></tr></thead>
+  <tbody>
+  {% for s in series %}
+    <tr>
+      <td>{{ s.key }}<br><span class="discret">{{ view.account_names.get(s.last.account_id, "") }} · {{ s.operations | length }} opérations depuis le {{ s.first.booking_date | date_fr }}</span></td>
+      <td>{{ s.frequency.label }}</td>
+      <td class="montant {{ s.current_cents | amount_class }}">{{ s.current_cents | eur }}{% if s.previous_cents is not none %}<br><span class="{{ 'negatif' if (s.current_cents < s.previous_cents) == debit else 'positif' }}">{% if (s.current_cents < s.previous_cents) == debit %}hausse{% else %}baisse{% endif %} depuis le {{ s.change_date | date_fr }} (avant {{ s.previous_cents | eur }})</span>{% endif %}</td>
+      <td class="montant">{{ s.monthly_cents | eur }}</td>
+      <td>{{ s.next_date | date_fr }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+{% block content %}
+<h1>Abonnements et opérations régulières</h1>
+<p class="discret">Repérées automatiquement dans vos 25 derniers mois : même libellé, qui revient chaque semaine, mois, trimestre ou année, pour un montant à peu près constant. Une notification signale une hausse de prix ou un prélèvement attendu qui n'est pas venu. Les cartes à débit immédiat et les virements entre vos comptes ne sont pas comptés.</p>
+
+<div class="tuiles">
+  <div class="carte"><span class="discret">Dépenses régulières par mois</span><br><strong class="negatif">{{ view.monthly_debits_cents | eur }}</strong><br><span class="discret">{{ view.annual_debits_cents | eur }} par an · {{ view.active_debits | length }} postes</span></div>
+</div>
+
+{% if view.missed %}
+<section class="carte">
+  <h2>Attendus et non reçus</h2>
+  <p class="discret">Opération habituelle qui n'est pas passée à la date prévue : abonnement résilié, changement de libellé, ou oubli de paiement.</p>
+  <table>
+    <thead><tr><th>Libellé</th><th>Attendu le</th><th class="montant">Montant habituel</th></tr></thead>
+    <tbody>{% for s in view.missed %}<tr><td>{{ s.key }}</td><td>{{ s.next_date | date_fr }}</td><td class="montant {{ s.current_cents | amount_class }}">{{ s.current_cents | eur }}</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="carte">
+  <h2>Dépenses régulières</h2>
+  {% if view.active_debits %}{{ rows(view.active_debits, true) }}{% else %}<p class="discret">Aucune dépense régulière détectée pour l'instant : il faut au moins trois prélèvements réguliers du même libellé (trois mois pour un abonnement mensuel).</p>{% endif %}
+</section>
+
+<section class="carte">
+  <h2>Recettes régulières</h2>
+  {% if view.active_credits %}{{ rows(view.active_credits, false) }}{% else %}<p class="discret">Aucune recette régulière détectée.</p>{% endif %}
+</section>
+{% endblock %}

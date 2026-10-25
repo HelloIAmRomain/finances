@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Règles · Finances{% endblock %}
+{% block content %}
+<h1>Règles de catégorisation</h1>
+<p class="discret">Appliquées par priorité croissante ; la première qui correspond l'emporte. Une catégorie choisie à la main n'est jamais remplacée par une règle.</p>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+<table>
+  <thead><tr><th>Priorité</th><th>Règle</th><th>Catégorie</th><th></th></tr></thead>
+  <tbody>
+  {% for rule, description in rules %}
+    <tr{% if not rule.is_active %} class="discret"{% endif %}>
+      <td>{{ rule.priority }}</td>
+      <td>{{ rule.name }}<br><span class="discret">{{ description }}</span>{% if not rule.is_active %} <em>(désactivée)</em>{% endif %}</td>
+      <td>{{ category_names.get(rule.category_id, "?") }}</td>
+      <td>
+        {% if rule.is_active %}
+        <form method="post" action="/regles/{{ rule.id }}/modifier" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}">
+          <input name="priorite" type="number" value="{{ rule.priority }}" aria-label="Priorité" class="court">
+          <select name="categorie" aria-label="Catégorie">{% for id, label in categories %}<option value="{{ id }}"{% if id == rule.category_id %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          <button type="submit">Modifier</button>
+        </form>
+        <form method="post" action="/regles/{{ rule.id }}/desactiver" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}">
+          <button type="submit">Désactiver</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="discret">Aucune règle. Catégoriser une opération à la main propose d'en créer une.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Nouvelle règle</h2>
+<form method="post" action="/regles" class="carte formulaire">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}">
+  <label>Nom <input name="nom" required maxlength="128"></label>
+  <label>Priorité <input name="priorite" type="number" value="100" required></label>
+  <label>Le libellé contient (fragments séparés par des virgules) <input name="contient"></label>
+  <label>Ou expression régulière <input name="expression"></label>
+  <label>Sens
+    <select name="sens"><option value="">Tous</option><option value="debit">Dépense</option><option value="credit">Recette</option></select>
+  </label>
+  <label>Montant min. (€) <input name="montant_min" inputmode="decimal"></label>
+  <label>Montant max. (€) <input name="montant_max" inputmode="decimal"></label>
+  <label>Catégorie
+    <select name="categorie">{% for id, label in categories %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select>
+  </label>
+  <button type="submit">Créer</button>
+</form>
+{% endblock %}

@@ -1,0 +1,12 @@
+description: Le CSV porte la date d'opération, l'API la date comptable (un jour d'écart) ; à valider.
+imports:
+  - source: enable_banking
+    transactions:
+      - {id: api, external_id: E1, date: 2026-09-03, amount: -420, label: CB BOULANGERIE}
+  - source: csv
+    transactions:
+      - {id: csv, date: 2026-09-02, amount: -420, label: CARTE BOULANGERIE}
+      - {id: trop_loin, date: 2026-08-25, amount: -420, label: CARTE BOULANGERIE}
+expected_links:
+  - {canonical: api, duplicate: csv, reason: probable, status: proposed, mode: auto}
+expected_review_items: 1

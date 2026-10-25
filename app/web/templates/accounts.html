@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Comptes · Finances{% endblock %}
+{% block content %}
+{% macro reglages(a) %}
+        <form method="post" action="/comptes/{{ a.id }}/reglages" class="en-ligne" aria-label="Réglages du compte {{ a.id }}">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}">
+          <input name="nom" value="{{ a.name }}" maxlength="128" aria-label="Nom du compte" class="nom-compte">
+          <select name="suivi" aria-label="Suivi">
+            <option value="compte"{% if a.counted and not a.ignored %} selected{% endif %}>Suivi (additionné)</option>
+            <option value="consultation"{% if not a.counted and not a.ignored %} selected{% endif %}>Consultation seule</option>
+            <option value="ignore"{% if a.ignored %} selected{% endif %}>Ignoré</option>
+          </select>
+          {% if a.institution %}<select name="synchros" aria-label="Mises à jour par jour">{% for n in range(1, 5) %}<option value="{{ n }}"{% if n == a.syncs_per_day %} selected{% endif %}>{{ n }} mise{% if n > 1 %}s{% endif %} à jour par jour</option>{% endfor %}</select>
+          {% else %}<input type="hidden" name="synchros" value="{{ a.syncs_per_day }}">{% endif %}
+          <button type="submit">Enregistrer</button>
+          <label class="role-compte">Rôle du compte, pour l'assistant <input name="role" value="{{ a.description or '' }}" maxlength="500" placeholder="ex. compte courant principal : salaire, dépenses du quotidien"></label>
+        </form>
+{% endmacro %}
+<h1>Comptes</h1>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p class="discret">« Suivi » : le compte entre dans le patrimoine, les recettes et les dépenses. « Consultation seule » : il reste visible (compte joint, carte à débit immédiat dont les paiements figurent déjà sur le compte courant) sans être additionné. « Ignoré » : plus de mise à jour, il disparaît de partout sauf de la liste « Comptes ignorés » ci-dessous ; ses données sont conservées et il peut être réactivé.</p>
+<table>
+  <thead>
+    <tr><th>Compte</th><th>Banque</th><th>Accès à la banque</th><th>Dernière mise à jour</th><th class="montant">Solde</th></tr>
+  </thead>
+  <tbody>
+  {% for a in accounts if not a.ignored %}
+    <tr>
+      <td>{{ a.name }}{% if not a.counted %} <span class="badge">consultation seule</span>{% endif %}<br><span class="discret">n° {{ a.id }} · {{ account_types[a.type] }}{% if a.iban_masked %} · {{ a.iban_masked }}{% endif %}</span>
+        {{ reglages(a) }}
+      </td>
+      <td>{% if a.institution %}{{ a.institution }}<br><span class="discret">{{ connection_labels.get(a.connection_status, a.connection_status) }}</span>{% else %}<span class="discret">Import de fichiers</span>{% endif %}</td>
+      <td>{% if a.consent_expires_at %}jusqu'au {{ a.consent_expires_at | date_fr }}{% else %}<span class="discret">—</span>{% endif %}</td>
+      <td>{% if a.last_success_at %}<span{% if a.id in stale %} class="negatif"{% endif %}>{{ a.last_success_at | datetime_fr }}</span>{% else %}<span class="discret">jamais</span>{% endif %}
+        {% if a.id in stale %}<br><span class="negatif">aucune mise à jour réussie depuis 24 h</span>{% endif %}
+        {% if a.last_error and a.last_attempt_at %}<br><span class="discret">dernier essai le {{ a.last_attempt_at | datetime_fr }} : {{ a.last_error }}</span>{% endif %}
+        {% if budgets.get(a.id) %}<br><span class="discret">accès sur 24 h :{% for endpoint, used, limit in budgets[a.id] %} {{ endpoint_labels.get(endpoint, endpoint) }} {{ used }}/{{ limit }}{% if not loop.last %},{% endif %}{% endfor %}</span>{% endif %}
+        {% if a.connection_status == "active" %}
+        {% set refus = sync_blockers.get(a.id) %}
+        <form method="post" action="/comptes/{{ a.id }}/synchroniser" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit"{% if refus %} disabled aria-describedby="refus-{{ a.id }}"{% endif %}>Mettre à jour maintenant</button>
+        </form>{% if refus %}<br><span class="discret" id="refus-{{ a.id }}">{{ refus }}</span>{% endif %}{% endif %}
+      </td>
+      <td class="montant">{% if a.balance_cents is not none %}<span class="{{ a.balance_cents | amount_class }}">{{ a.balance_cents | eur }}</span><br><span class="discret">{% if a.balance_type == "available" %}prévisionnel {% elif a.balance_type == "other" %}autre solde {% endif %}au {{ a.balance_date | date_fr }}</span>{% else %}<span class="discret">—</span>{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="discret">Aucun compte pour l'instant.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% set ignores = accounts | selectattr("ignored") | list %}
+{% if ignores %}
+<details class="carte">
+  <summary>Comptes ignorés ({{ ignores | length }})</summary>
+  <table>
+    {% for a in ignores %}
+    <tr><td>{{ a.name }}<br><span class="discret">n° {{ a.id }} · {{ account_types[a.type] }}{% if a.institution %} · {{ a.institution }}{% endif %}</span></td>
+      <td>{{ reglages(a) }}</td></tr>
+    {% endfor %}
+  </table>
+</details>
+{% endif %}
+
+<h2>Ajouter un compte alimenté par fichiers</h2>
+<form method="post" action="/comptes" class="carte formulaire">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}">
+  <label>Nom <input name="nom" required maxlength="128"></label>
+  <label>Type
+    <select name="type">{% for value, label in account_types.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+  </label>
+  <label>IBAN (facultatif) <input name="iban" autocomplete="off" maxlength="42"></label>
+  <label class="case"><input type="checkbox" name="patrimoine" value="true" checked> Suivi : additionné au patrimoine, aux recettes et aux dépenses</label>
+  <button type="submit">Ajouter</button>
+</form>
+{% endblock %}

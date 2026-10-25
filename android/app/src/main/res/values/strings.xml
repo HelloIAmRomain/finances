@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Finances</string>
+    <string name="widget_label">Loyers du mois</string>
+    <string name="widget_configure_label">Widget des loyers</string>
+    <string name="widget_refresh">Mettre à jour le widget</string>
+    <string name="widget_refresh_symbol" translatable="false">↻</string>
+    <string name="widget_updated">Mis à jour à %1$s</string>
+    <string name="widget_not_paired">Ouvrez l\'application Finances pour appairer ce téléphone.</string>
+    <string name="widget_unreachable">Serveur injoignable : Tailscale est-il actif sur ce téléphone ?</string>
+</resources>

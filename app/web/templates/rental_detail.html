@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}{{ lease.label }} · Finances{% endblock %}
+{% macro badge(state) %}<span class="etat etat-{{ state }}">{{ state_labels[state] }}</span>{% endmacro %}
+{% block content %}
+<p><a href="/loyers">← Loyers</a></p>
+<h1>{{ lease.label }} <span class="badge">{{ kind_labels[lease.kind] }}</span></h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p class="discret">{% if lease.property_name %}<a href="/biens/{{ lease.property_id }}">{{ lease.property_name }}</a> · {% endif %}encaissé sur {{ lease.account_name }} · {{ lease.monthly_cents | eur }} par mois · depuis le {{ lease.start_date | date_fr }}{% if lease.end_date %} jusqu'au {{ lease.end_date | date_fr }}{% endif %} · alerte le {{ lease.alert_day }}, impayé le {{ lease.unpaid_day }}{% if lease.tracking_start %} · suivi depuis {{ lease.tracking_start.strftime("%m/%Y") }}{% endif %}</p>
+
+{% if untracked %}
+<section class="carte" role="status" id="hors-historique">
+  <h2 class="alerte">Des mois anciens faussent le suivi</h2>
+  <p>{{ untracked.count }} échéance{{ "s" if untracked.count > 1 }} ({{ untracked.first_period | mois_fr }} à {{ untracked.last_period | mois_fr }}) précède{{ "nt" if untracked.count > 1 }} l'historique fourni par la banque : pour ce compte, il n'est complet qu'à partir de {{ untracked.suggested_start.strftime('%Y-%m') | mois_fr }}. Ces mois paraissent impayés sans pouvoir être vérifiés, et chaque virement reçu y est rangé (le plus ancien impayé d'abord) au lieu du mois en cours.</p>
+  <form method="post" action="/loyers/{{ lease.id }}/modifier" class="en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <input type="hidden" name="suivi" value="{{ untracked.suggested_start.strftime('%Y-%m') }}">
+    <button type="submit">Suivre à partir de {{ untracked.suggested_start.strftime('%Y-%m') | mois_fr }}</button>
+  </form>
+  <p class="discret">Les virements déjà rangés sur ces mois anciens seront rapprochés de nouveau. Un paiement affecté à la main à l'un de ces mois doit d'abord être dissocié.</p>
+</section>
+{% endif %}
+
+<section class="carte">
+  <h2>Échéances</h2>
+  <table>
+    <thead><tr><th>Mois</th><th>État</th><th>Opérations affectées</th><th class="montant">Reste dû</th></tr></thead>
+    <tbody>
+    {% for due in lease.dues | reverse %}
+      <tr>
+        <td>{{ due.period }}<br><span class="discret">{{ due.amount_cents | eur }}</span></td>
+        <td>{{ badge(due.state) }}</td>
+        <td>
+          {% for a in due.allocations %}
+            <div{% if a.status != "confirmed" %} class="discret"{% endif %}>{{ a.booking_date | date_fr }} · {{ a.label }} · {{ a.amount_cents | eur }}
+              {% if a.status == "confirmed" %}<form method="post" action="/loyers/{{ lease.id }}/affectations/{{ a.id }}/dissocier" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Dissocier</button></form>
+              {% else %}<em>({{ {"proposed": "à valider", "rejected": "écartée", "cancelled": "rejetée par la banque"}[a.status] }})</em>{% endif %}
+              {% if a.note %}<br><span class="discret">{{ a.note }}</span>{% endif %}</div>
+          {% endfor %}
+          {% if due.remaining_cents %}<a href="/loyers/{{ lease.id }}/echeances/{{ due.id }}/affecter">Affecter une opération…</a>
+          {% elif lease.kind == "rent" and due.state == "paye" %}<a href="/loyers/{{ lease.id }}/echeances/{{ due.id }}/quittance">Quittance</a>{% endif %}
+        </td>
+        <td class="montant{% if due.remaining_cents %} negatif{% endif %}">{{ due.remaining_cents | eur }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="discret">Aucune échéance encore.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="carte">
+  <h2>Payeurs</h2>
+  <table>
+    {% for p in lease.parties %}
+      <tr><td>{{ p.name }}</td><td>{{ role_labels[p.role] }}</td><td class="discret">{{ p.iban_masked or "—" }}{% if p.patterns %} · motifs : {{ p.patterns | join(", ") }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  <form method="post" action="/loyers/{{ lease.id }}/payeurs" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Rôle <select name="role">{% for r in roles %}<option value="{{ r }}">{{ role_labels[r] }}</option>{% endfor %}</select></label>
+    <label>Nom <input name="nom" required maxlength="128"></label>
+    <label>IBAN <input name="iban" maxlength="42" autocomplete="off"></label>
+    <label>Motif du libellé <input name="motif" maxlength="64"></label>
+    <button type="submit">Ajouter un payeur</button>
+  </form>
+</section>
+
+<section class="carte">
+  <h2>Incidents</h2>
+  <table>
+    {% for on, kind, period in lease.incidents %}
+      <tr><td>{{ on | date_fr }}</td><td>{{ incident_labels[kind] }}</td><td>{{ period }}</td></tr>
+    {% else %}
+      <tr><td class="discret">Aucun incident.</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+{% if lease.kind == "rent" %}
+<section class="carte" id="quittances">
+  <h2>Quittances</h2>
+  <p class="discret">Une quittance prouve que le locataire a payé le loyer et les charges d'un mois. Elle est proposée dans la liste des échéances (« Quittance ») dès qu'un mois est entièrement payé ; vous la téléchargez en PDF et la remettez vous-même : rien n'est envoyé au locataire.</p>
+  {% if receipt_gaps.any %}<p class="negatif">{{ receipt_gaps_message }}{% if lease.property_id and (receipt_gaps.landlord or receipt_gaps.address) %} <a href="/biens/{{ lease.property_id }}#quittances">Compléter la fiche du bien</a>{% endif %}</p>{% endif %}
+</section>
+{% endif %}
+
+{% if lease.kind == "rent" %}
+{% set d = deposit %}{% set status = d.status(today) %}
+<section class="carte" id="depot">
+  <h2>Dépôt de garantie</h2>
+  <p class="discret">Somme versée par le locataire à son arrivée, à lui rendre après son départ, moins les retenues justifiées (réparations, loyers ou charges impayés). Délai : 1 mois après la remise des clés si l'état des lieux de sortie est conforme à celui d'entrée, 2 mois sinon.</p>
+  <p>
+    <span class="etat etat-{{ {'attendu': 'attendu', 'encaisse': 'paye', 'a_restituer': 'attendu', 'en_retard': 'impaye', 'solde': 'paye'}[status] }}">{{ deposit_statuses[status] }}</span>
+    Prévu au bail : {{ d.expected_cents | eur }} · encaissé : {{ d.received_cents | eur }}{% if d.withheld_cents %} · retenues : {{ d.withheld_cents | eur }}{% endif %}{% if d.returned_cents %} · restitué : {{ d.returned_cents | eur }}{% endif %}{% if d.received_cents %} · <strong>reste à restituer : {{ d.to_return_cents | eur }}</strong>{% endif %}
+  </p>
+  {% if d.above_legal_max %}<p class="negatif">Montant supérieur au maximum légal de {{ d.legal_max_cents | eur }} ({% if d.furnished %}2 mois{% else %}1 mois{% endif %} de loyer hors charges) : l'excédent revient au locataire.</p>{% endif %}
+  {% if d.deadline and d.to_return_cents > 0 %}
+  <p>À restituer au plus tard le <strong>{{ d.deadline | date_fr }}</strong>{% if d.exit_inspection_ok is none %} (1 mois après la remise des clés ; 2 mois si l'état des lieux de sortie n'est pas conforme : précisez-le ci-dessous){% endif %}. Un rappel part 7 jours avant.</p>
+  {% if status == "en_retard" %}<p class="negatif">La date limite est dépassée : restituez le dépôt dès que possible.</p>{% endif %}
+  {% endif %}
+  <ul>
+  {% for e in d.events %}
+    <li>{{ e.on_date | date_fr }} · <strong>{{ deposit_kinds[e.kind] | sentence }} : {{ e.amount_cents | eur }}</strong>{% if e.note %} · {{ e.note }}{% endif %}{% if e.operation %}<br><span class="discret">opération : {{ e.operation }}</span>{% endif %}
+      <form method="post" action="/loyers/{{ lease.id }}/depot/{{ e.id }}/supprimer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Retirer</button></form></li>
+  {% else %}
+    <li class="discret">Aucun mouvement. Commencez par enregistrer le dépôt encaissé ci-dessous, avec l'opération bancaire correspondante si le locataire l'a viré.</li>
+  {% endfor %}
+  </ul>
+
+  {% if d.received_cents < d.expected_cents or not d.received_cents %}
+  <form method="post" action="/loyers/{{ lease.id }}/depot" class="formulaire">
+    <h3>Dépôt encaissé</h3>
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><input type="hidden" name="nature" value="received">
+    <label>Opération bancaire <select name="operation"><option value="">Sans opération (remis autrement)</option>{% for c in deposit_credits %}<option value="{{ c.id }}">{{ c.booking_date | date_fr }} · {{ c.amount_cents | eur }} · {{ c.label[:40] }}</option>{% endfor %}</select></label>
+    <label>Montant (vide : celui de l'opération) <input name="montant" inputmode="decimal" placeholder="{{ d.expected_cents | eur }}"></label>
+    <label>Date (vide : celle de l'opération, sinon aujourd'hui) <input type="date" name="date"></label>
+    <button type="submit">Enregistrer l'encaissement</button>
+  </form>
+  {% endif %}
+
+  <form method="post" action="/loyers/{{ lease.id }}/sortie" class="formulaire">
+    <h3>Fin de location</h3>
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Remise des clés le <input type="date" name="remise_cles" {% set exit_day = d.keys_returned_on or lease.end_date %}value="{{ exit_day.isoformat() if exit_day else '' }}"></label>
+    <fieldset><legend>État des lieux de sortie</legend>
+      <label class="case"><input type="radio" name="etat_des_lieux" value="conforme"{% if d.exit_inspection_ok %} checked{% endif %}> Conforme à l'entrée (1 mois pour restituer)</label>
+      <label class="case"><input type="radio" name="etat_des_lieux" value="non_conforme"{% if d.exit_inspection_ok is false %} checked{% endif %}> Différences constatées (2 mois)</label>
+      <label class="case"><input type="radio" name="etat_des_lieux" value=""{% if d.exit_inspection_ok is none %} checked{% endif %}> Pas encore fait</label>
+    </fieldset>
+    <button type="submit" class="secondaire">Enregistrer la fin de location</button>
+  </form>
+
+  {% if d.received_cents and d.to_return_cents > 0 %}
+  <form method="post" action="/loyers/{{ lease.id }}/depot" class="formulaire">
+    <h3>Retenue</h3>
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><input type="hidden" name="nature" value="withheld">
+    <label>Montant <input name="montant" inputmode="decimal" placeholder="150,00" required></label>
+    <label>Motif (justificatif à conserver) <input name="motif" maxlength="200" placeholder="Remplacement du store cassé (facture du 12/11)" required></label>
+    <button type="submit" class="secondaire">Ajouter la retenue</button>
+  </form>
+  <form method="post" action="/loyers/{{ lease.id }}/depot" class="formulaire">
+    <h3>Restitution</h3>
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><input type="hidden" name="nature" value="returned">
+    <label>Opération bancaire <select name="operation"><option value="">Sans opération (rendu autrement)</option>{% for c in deposit_debits %}<option value="{{ c.id }}">{{ c.booking_date | date_fr }} · {{ c.amount_cents | eur }} · {{ c.label[:40] }}</option>{% endfor %}</select></label>
+    <label>Montant (vide : celui de l'opération) <input name="montant" inputmode="decimal" placeholder="{{ d.to_return_cents | eur }}"></label>
+    <label>Date (vide : celle de l'opération, sinon aujourd'hui) <input type="date" name="date"></label>
+    <button type="submit">Enregistrer la restitution</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% macro idx(v) %}{{ v // 100 }},{{ "%02d" % (v % 100) }}{% endmacro %}
+{% if lease.kind == "rent" %}
+<section class="carte" id="irl">
+  <h2>Révision annuelle du loyer (IRL)</h2>
+  <p class="discret">Le loyer hors charges suit l'indice de référence des loyers (INSEE) à la date anniversaire du bail ({{ next_anniversary | date_fr }}) : loyer × indice du même trimestre un an plus tard ÷ indice de référence. Rien n'est appliqué ni envoyé au locataire sans votre accord.</p>
+  {% if irl_proposal %}
+    {% if irl_proposal.ready %}
+    <p>Révision proposée à partir du <strong>{{ irl_proposal.effective_from | date_fr }}</strong> : {{ irl_proposal.rent_cents | eur }} → <strong>{{ irl_proposal.new_rent_cents | eur }}</strong> (indice {{ quarter_label(irl_proposal.reference_quarter) }} : {{ idx(irl_proposal.reference_value) }} → {{ quarter_label(irl_proposal.new_quarter) }} : {{ idx(irl_proposal.new_value) }}).</p>
+    <form method="post" action="/loyers/{{ lease.id }}/irl/appliquer" class="en-ligne">
+      <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Appliquer la révision</button>
+    </form>
+    {% else %}
+    <p class="discret">Révision à préparer : indice {{ quarter_label(irl_proposal.missing_quarter) }} à saisir ({{ publication_hint(irl_proposal.missing_quarter) }}, sur insee.fr, série 001515333).</p>
+    {% endif %}
+  {% elif not irl_reference %}
+  <p class="discret">Indiquez le trimestre de l'indice de référence figurant dans le bail pour préparer la révision.</p>
+  {% else %}
+  <p class="discret">Référence actuelle : {{ quarter_label(irl_reference) }}. La révision sera proposée 30 jours avant l'anniversaire.</p>
+  {% endif %}
+  <form method="post" action="/loyers/{{ lease.id }}/irl/reference" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Trimestre de l'indice de référence (indiqué dans le bail) <input name="trimestre" value="{{ quarter_label(irl_reference) if irl_reference else '' }}" placeholder="T2 2025" maxlength="12"></label>
+    <button type="submit" class="secondaire">Enregistrer</button>
+  </form>
+  <form method="post" action="/loyers/{{ lease.id }}/irl/indice" class="filtres">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Trimestre <input name="trimestre" placeholder="T2 2026" maxlength="12" required></label>
+    <label>Indice publié <input name="valeur" inputmode="decimal" placeholder="145,17" required></label>
+    <button type="submit" class="secondaire">Saisir l'indice</button>
+  </form>
+  {% if irl_indices %}<p class="discret">Indices saisis : {% for q, v in irl_indices %}{{ quarter_label(q) }} : {{ idx(v) }}{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+</section>
+{% endif %}
+
+<details class="carte">
+  <summary>Modifier le bail</summary>
+  <form method="post" action="/loyers/{{ lease.id }}/modifier" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Nom <input name="nom" value="{{ lease.label }}" maxlength="128"></label>
+    <label>Suivi à partir du mois <input name="suivi" type="month" value="{{ lease.tracking_start.strftime('%Y-%m') if lease.tracking_start else '' }}"></label>
+    <p class="discret">Les banques ne donnent que 90 jours d'historique : les mois antérieurs au suivi ne sont pas vérifiés et ne créent pas d'échéance. Déplacer le suivi plus tard retire ces échéances et relance le rapprochement.</p>
+    <label>Nouveau loyer hors charges <input name="montant" inputmode="decimal" placeholder="{{ lease.rent_cents | saisie }}"></label>
+    <label>Nouvelles charges <input name="charges" inputmode="decimal" placeholder="{{ lease.charges_cents | saisie }}"></label>
+    <label>Nouveau montant applicable à partir du mois <input name="a_partir_de" type="month"></label>
+    <label>Jour d'échéance <input name="jour_echeance" type="number" min="1" max="28" value="{{ lease.due_day }}"></label>
+    <label>Alerte « rien reçu » le <input name="jour_alerte" type="number" min="1" max="28" value="{{ lease.alert_day }}"></label>
+    <label>Alerte « impayé » le <input name="jour_impaye" type="number" min="2" max="28" value="{{ lease.unpaid_day }}"></label>
+    <button type="submit">Enregistrer les modifications</button>
+  </form>
+</details>
+
+<form method="post" action="/loyers/{{ lease.id }}/terminer" class="carte filtres">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}">
+  <label>Fin du bail <input name="fin" type="date" required></label>
+  <button type="submit" class="secondaire">Enregistrer la fin</button>
+</form>
+{% endblock %}

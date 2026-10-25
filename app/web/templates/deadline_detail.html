@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ kind_labels[d.kind] }} · Finances{% endblock %}
+{% block content %}
+<p><a href="/echeances">← Échéances</a></p>
+<h1>{{ kind_labels[d.kind] }}{% if d.label %} <span class="discret">({{ d.label }})</span>{% endif %}</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p>
+  Date limite : <strong>{{ d.due_date | date_fr }}</strong>
+  {% if d.done_at %}<span class="etat etat-paye">réglée le {{ d.done_at | date_fr }}</span>
+  {% elif days_left < 0 %}<span class="etat etat-impaye">en retard de {{ -days_left }} jour{{ "s" if -days_left > 1 }}</span>
+  {% else %}<span class="etat etat-attendu">dans {{ days_left }} jour{{ "s" if days_left > 1 }}</span>{% endif %}
+</p>
+<p class="discret">
+  {% if d.amount_cents %}Montant : {{ d.amount_cents | eur }}{% if d.recoverable_cents %} · dont récupérable sur le locataire : {{ d.recoverable_cents | eur }}{% endif %}{% else %}Montant non saisi : saisissez-le à réception de l'avis pour que le paiement soit reconnu.{% endif %}
+  · rappel {{ d.remind_days }} jour{{ "s" if d.remind_days > 1 }} avant{% if d.yearly %} · revient chaque année{% endif %}
+  {% for id, name in properties %}{% if id == d.property_id %} · bien : <a href="/biens/{{ id }}">{{ name }}</a>{% endif %}{% endfor %}
+</p>
+
+{% if d.done_at %}
+<section class="carte">
+  <h2>Règlement</h2>
+  {% if payment %}<p>Payée par l'opération du {{ payment.booking_date | date_fr }} : {{ payment.label_clean }} (<span class="negatif">{{ payment.amount_cents | eur }}</span>).</p>{% else %}<p class="discret">Marquée réglée sans opération rattachée.</p>{% endif %}
+  <form method="post" action="/echeances/{{ d.id }}/rouvrir" class="en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Annuler le règlement</button>
+  </form>
+</section>
+{% else %}
+<section class="carte">
+  <h2>Marquer comme réglée</h2>
+  <p class="discret">Dépenses du {{ window_start | date_fr }} au {{ window_end | date_fr }}, celles du montant exact d'abord.</p>
+  <form method="post" action="/echeances/{{ d.id }}/regler" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Opération de paiement
+      <select name="operation">
+        <option value="">Sans opération (payée autrement)</option>
+        {% for c in candidates %}<option value="{{ c.id }}"{% if loop.first and c.exact %} selected{% endif %}>{{ c.booking_date | date_fr }} · {{ c.amount_cents | eur }} · {{ c.label[:40] }}{% if c.exact %} ✓{% endif %}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit">Marquer comme réglée</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="carte">
+  <h2>Modifier</h2>
+  <form method="post" action="/echeances/{{ d.id }}/modifier" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Nature <select name="nature">{% for kind, label in kind_labels.items() %}<option value="{{ kind }}"{% if kind == d.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Date limite <input type="date" name="echeance" value="{{ d.due_date.isoformat() }}" required></label>
+    <label>Bien <select name="bien"><option value="">Aucun</option>{% for id, name in properties %}<option value="{{ id }}"{% if id == d.property_id %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+    <label>Précision <input name="precision" maxlength="128" value="{{ d.label or '' }}"></label>
+    <label>Montant de l'avis <input name="montant" inputmode="decimal" value="{{ d.amount_cents | eur if d.amount_cents else '' }}"></label>
+    <label>Dont part récupérable sur le locataire <input name="recuperable" inputmode="decimal" value="{{ d.recoverable_cents | eur if d.recoverable_cents else '' }}"></label>
+    <label>Rappel (jours avant) <input type="number" name="rappel" min="0" max="90" value="{{ d.remind_days }}"></label>
+    <label class="case"><input type="checkbox" name="annuelle" value="1"{% if d.yearly %} checked{% endif %}> Revient chaque année</label>
+    <button type="submit">Enregistrer les modifications</button>
+  </form>
+  <form method="post" action="/echeances/{{ d.id }}/supprimer" class="en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Supprimer l'échéance</button>
+  </form>
+</section>
+{% endblock %}

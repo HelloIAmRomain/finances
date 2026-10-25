@@ -1,0 +1,4 @@
+[
+  {"id": 5, "type": "loyer_partiel", "gravite": "warning", "etat": "open", "titre": "Loyer reçu en partie", "ouverte_le": "2026-09-02T10:00:00Z"},
+  {"id": 6, "type": "sync_stale", "gravite": "critical", "etat": "seen", "titre": "Aucune synchro bancaire réussie depuis 24 h", "ouverte_le": "2026-09-01T08:00:00"}
+]

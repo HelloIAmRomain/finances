@@ -1,0 +1,43 @@
+{
+  "manifest_version": "0.4",
+  "name": "finances-perso",
+  "display_name": "Finances perso",
+  "version": "1.0.0",
+  "description": "Mes comptes, dépenses et loyers, depuis le Raspberry Pi via Tailscale.",
+  "long_description": "Relais local entre le client MCP du PC et le serveur MCP de l'application Finances perso (Raspberry Pi, accessible uniquement par Tailscale). Données pseudonymisées ; modifications journalisées et annulables ; aucun outil ne déplace d'argent.",
+  "author": { "name": "Finances perso" },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "FINANCES_URL": "${user_config.adresse}",
+        "FINANCES_TOKEN": "${user_config.jeton}"
+      }
+    }
+  },
+  "user_config": {
+    "adresse": {
+      "type": "string",
+      "title": "Adresse du serveur MCP",
+      "description": "Adresse HTTPS de l'application sur le tailnet, suivie de /mcp.",
+      "required": true,
+      "default": "https://finances.invalid/mcp"
+    },
+    "jeton": {
+      "type": "string",
+      "title": "Jeton d'accès IA",
+      "description": "Jeton créé sur la page Sécurité de l'application (commence par fia_).",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32", "darwin", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  },
+  "keywords": ["finances", "budget", "loyers"],
+  "license": "UNLICENSED"
+}

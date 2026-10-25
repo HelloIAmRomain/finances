@@ -1,0 +1,325 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Sur main, un groupe par commit : chaque commit a sa CI complète (un groupe partagé ne garde
+# qu'une exécution en attente et annule les autres). En PR, seule la dernière poussée compte.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    name: lint, types, tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25  # 9 à 10 min d'habitude ; à 15, un ralenti du 07/10 a bloqué 8 nuits de déploiement
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
+          version: "0.12.19"
+          enable-cache: true
+      - name: Installer sops (somme de contrôle vérifiée) et age
+        env:
+          # renovate: datasource=github-releases depName=getsops/sops
+          SOPS_VERSION: "3.13.3"
+        run: |
+          base="https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}"
+          bin="sops-v${SOPS_VERSION}.linux.amd64"
+          curl -fsSLO "${base}/${bin}"
+          curl -fsSLO "${base}/sops-v${SOPS_VERSION}.checksums.txt"
+          grep " ${bin}\$" "sops-v${SOPS_VERSION}.checksums.txt" | sha256sum -c -
+          sudo install -m 0755 "${bin}" /usr/local/bin/sops
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends age
+      - name: Installer restic (somme de contrôle vérifiée)
+        env:
+          # renovate: datasource=github-releases depName=restic/restic
+          RESTIC_VERSION: "0.19.1"
+        run: |
+          base="https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}"
+          archive="restic_${RESTIC_VERSION}_linux_amd64.bz2"
+          curl -fsSLO "${base}/${archive}"
+          curl -fsSLO "${base}/SHA256SUMS"
+          grep " ${archive}\$" SHA256SUMS | sha256sum -c -
+          bunzip2 "${archive}"
+          sudo install -m 0755 "restic_${RESTIC_VERSION}_linux_amd64" /usr/local/bin/restic
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest --cov=app --cov-branch --cov-report=term-missing:skip-covered --cov-fail-under=95
+        env:
+          HYPOTHESIS_PROFILE: ci
+          FINANCES_REQUIRE_TOOLS: "1"
+
+  e2e:
+    name: bout en bout (Chromium, HTTPS)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
+          version: "0.12.19"
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest tests/e2e --e2e --tracing=retain-on-failure --output=e2e-traces
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: traces-e2e
+          path: e2e-traces
+          retention-days: 7
+
+  android:
+    name: application Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Construction sans aucun secret ni droit d'écriture : le code de build (Gradle, greffons,
+    # dépendances, y compris celles d'une PR Renovate) ne voit jamais la clé de signature.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Tests, lint strict, APK non signé
+        working-directory: android
+        env:
+          FINANCES_VERSION_CODE: ${{ github.run_number }}
+          FINANCES_VERSION_NAME: "1.${{ github.run_number }}"
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleRelease
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finances-apk-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  android-release:
+    # Signature à part, par apksigner seul (aucun code du dépôt exécuté). Sur main : clé de
+    # release et publication. En PR : clé jetable, pour vérifier la chaîne sans secret.
+    name: application Android (signature et publication)
+    needs: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # publication de l'APK sur la release « android » (main seulement)
+    env:
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: finances-apk-unsigned
+      - name: Signer l'APK
+        env:
+          KEYSTORE_B64: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_B64 || '' }}
+          KEYSTORE_PASSWORD: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+        run: |
+          keystore="${RUNNER_TEMP}/signature.jks"
+          if [ "${PUBLISH}" = true ]; then
+            if [ -z "${KEYSTORE_B64}" ]; then echo "::error::clé de signature absente des secrets"; exit 1; fi
+            printf '%s' "${KEYSTORE_B64}" | base64 -d > "${keystore}"
+          else
+            KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
+            keytool -genkeypair -keystore "${keystore}" -alias finances -keyalg RSA -keysize 2048 \
+              -validity 1 -dname "CN=essai" -storepass "${KEYSTORE_PASSWORD}" -keypass "${KEYSTORE_PASSWORD}" -noprompt
+          fi
+          export KEYSTORE_PASSWORD
+          apksigner="$(find "${ANDROID_HOME}/build-tools" -name apksigner | sort -V | tail -1)"
+          "${apksigner}" sign --ks "${keystore}" --ks-key-alias finances \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+            --out finances.apk app-release-unsigned.apk
+          rm -f "${keystore}"
+          "${apksigner}" verify --verbose finances.apk
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finances-apk
+          path: finances.apk
+          retention-days: 30
+      - name: Publier l'APK (main seulement)
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view android > /dev/null 2>&1; then
+            gh release create android --title "Application Android" --latest=false \
+              --notes "Dernière version de l'application, construite par la CI à chaque commit de main."
+          fi
+          gh release upload android finances.apk --clobber
+          gh release edit android --notes "Version 1.${{ github.run_number }} (commit ${GITHUB_SHA::7})."
+
+  android-device:
+    name: application Android sur émulateur
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Libérer de la place (l'émulateur a besoin de plusieurs Go)
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h / | tail -1
+      - name: Accès à KVM (accélération de l'émulateur)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          # Image « Automated Test Device » : allégée pour les tests, démarre bien plus vite.
+          target: aosp_atd
+          arch: x86_64
+          disable-animations: true
+          emulator-boot-timeout: 900
+          disk-size: 2048M
+          ram-size: 3072M
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: android
+          script: ./gradlew --no-daemon connectedDebugAndroidTest
+
+  secrets:
+    name: gitleaks (historique complet)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # renovate: datasource=github-releases depName=gitleaks/gitleaks
+      GITLEAKS_VERSION: "8.30.1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Installer gitleaks (somme de contrôle vérifiée)
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSLO "${base}/${archive}"
+          curl -fsSLO "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " ${archive}\$" "gitleaks_${GITLEAKS_VERSION}_checksums.txt" | sha256sum -c -
+          tar xzf "${archive}" gitleaks
+      - run: ./gitleaks git --redact --verbose --config .gitleaks.toml .
+
+  provenance:
+    # Protection de main sans offre payante (dépôt privé gratuit : pas de protection de branche
+    # ni de règles côté GitHub). Un commit poussé directement sur main, sans PR fusionnée, rend
+    # la CI rouge : aucune image n'est publiée, donc le Pi ne le déploie jamais (update.sh tire
+    # l'image avant de mettre à jour ses fichiers).
+    name: provenance (commit issu d'une PR fusionnée)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Le commit de main vient d'une PR fusionnée
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Le lien commit → PR peut apparaître quelques secondes après la fusion.
+          for attempt in 1 2 3 4 5 6; do
+            merged=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+              --jq '[.[] | select(.merged_at != null and .base.ref == "main") | .number] | first // empty')
+            if [ -n "$merged" ]; then echo "commit issu de la PR #${merged}"; exit 0; fi
+            sleep $((attempt * 5))
+          done
+          echo "::error::${GITHUB_SHA} a été poussé sur main sans PR fusionnée : image non publiée, rien ne sera déployé. Passer par une PR."
+          exit 1
+
+  shell:
+    name: shellcheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: shellcheck sur tous les scripts
+        run: |
+          mapfile -t scripts < <(git ls-files '*.sh')
+          if [ "${#scripts[@]}" -eq 0 ]; then echo "aucun script"; exit 0; fi
+          shellcheck --severity=style "${scripts[@]}"
+
+  renovate-config:
+    name: validation de renovate.json
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # renovate: datasource=npm depName=renovate
+      RENOVATE_VERSION: "44.115.12"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - run: npx --yes --package "renovate@${RENOVATE_VERSION}" -- renovate-config-validator --strict renovate.json
+
+  mcp-extension:
+    name: extension MCP (relais)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # renovate: datasource=npm depName=@anthropic-ai/mcpb
+      MCPB_VERSION: "2.1.2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"  # les clients MCP embarquent un Node récent ; on vérifie le plus ancien visé
+      - run: node --test tests/extension/*.test.js
+      - run: npx --yes --package "@anthropic-ai/mcpb@${MCPB_VERSION}" -- mcpb validate app/assistant/extension/manifest.json
+
+  security:
+    name: sécurité (vulnérabilités, licences, analyse statique)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # renovate: datasource=pypi depName=semgrep
+      SEMGREP_VERSION: "1.179.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
+          version: "0.12.19"
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Vulnérabilités connues des dépendances livrées (pip-audit)
+        run: |
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt > requirements.txt
+          uv run pip-audit --strict -r requirements.txt
+      - name: Licences des dépendances livrées (aucune licence contaminante)
+        run: scripts/check-licences.sh
+      - name: Analyse statique de sécurité (Semgrep)
+        run: >-
+          uvx --from "semgrep==${SEMGREP_VERSION}" semgrep scan --metrics=off --error
+          --config p/python --config p/security-audit --config p/secrets app
+
+  image:
+    name: image
+    needs: [quality, e2e, secrets, provenance, shell, renovate-config, mcp-extension, security]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/image.yml

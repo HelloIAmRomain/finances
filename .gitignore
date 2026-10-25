@@ -1,0 +1,28 @@
+
+# Secrets et données — ne jamais versionner (inv. 5)
+.env
+.env.*
+*.dec.yaml
+*.pem
+*.key
+/data/
+/exports-bancaires/
+/ntfy/
+/state/
+
+# Python et outils
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Secrets chiffrés : dans le dépôt privé des secrets, jamais dans le dépôt de code (public).
+deploy/secrets.enc.yaml
+android/signing.enc.yaml

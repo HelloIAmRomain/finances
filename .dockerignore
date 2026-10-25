@@ -1,0 +1,8 @@
+# Contexte de build minimal : uniquement pyproject.toml, uv.lock et app/.
+*
+!pyproject.toml
+!uv.lock
+!app/
+!alembic.ini
+!migrations/
+**/__pycache__

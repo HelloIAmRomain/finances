@@ -1,0 +1,50 @@
+# Installé par : uv run pre-commit install (installe aussi le hook pre-push, ci-dessous)
+default_install_hook_types: [pre-commit, pre-push]
+# Bibliothèques embarquées : jamais modifiées (sommes de contrôle), exclues des hooks.
+exclude: ^(app/web/static/vendor/|tests/e2e/vendor/)
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+      - id: no-commit-to-branch # jamais de commit direct sur main (CONTRIBUTING.md)
+        args: ["--branch", "main"]
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+
+  - repo: local
+    hooks:
+      - id: no-push-to-main
+        name: jamais de poussée vers main (passer par une PR)
+        entry: >-
+          bash -c '[ "${PRE_COMMIT_REMOTE_BRANCH:-}" != refs/heads/main ] ||
+          { echo "Poussée vers main refusée : pousser une branche et ouvrir une PR (CONTRIBUTING.md)."; exit 1; }'
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude --check
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy (strict, tout le projet)
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false

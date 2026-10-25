@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord · Finances{% endblock %}
+{% block content %}
+<h1>Tableau de bord</h1>
+<nav class="pagination" aria-label="Mois">
+  <a href="/?mois={{ previous_month }}">← Mois précédent</a>
+  <strong>{{ month_label | sentence }}</strong>
+  <a href="/?mois={{ next_month }}">Mois suivant →</a>
+</nav>
+
+<div class="tuiles">
+  {% if rents %}
+  <div class="carte"><span class="discret">Loyers et remboursements du mois</span><br>
+    {% for rent in rents %}<a href="/loyers">{{ rent.lease }}</a> : <span class="etat etat-{{ rent.state }}">{{ state_labels[rent.state] }}</span>{% if rent.remaining_cents and rent.state != "attendu" %} <span class="discret">reste {{ rent.remaining_cents | eur }}</span>{% endif %}<br>{% endfor %}
+  </div>
+  {% endif %}
+  {% if deadlines %}
+  <div class="carte"><span class="discret">Prochaines échéances</span><br>
+    {# nosemgrep: var-in-href (adresses construites par le code : app.tax.calendar) #}
+    {% for e in deadlines %}{% set n = e.days_left(today) %}<a href="{{ e.href }}">{{ e.title }}</a> : <span class="{{ 'negatif' if n < 0 }}">{% if n < 0 %}en retard{% elif n == 0 %}aujourd'hui{% else %}le {{ e.day | date_fr }}{% endif %}</span><br>{% endfor %}
+    <a class="discret" href="/echeances">Toutes les échéances</a>
+  </div>
+  {% endif %}
+  {% if budgets %}
+  <div class="carte"><span class="discret">Budgets</span><br>
+    {% for b in budgets %}{{ b.name }} : <span class="{{ {'depasse': 'negatif', 'proche': 'alerte'}.get(b.level, '') }}">{{ b.percent }} %</span> <span class="discret">({{ b.spent_cents | eur }} sur {{ b.monthly_cents | eur }})</span><br>{% endfor %}
+    <a class="discret" href="/budgets?mois={{ month }}">Tous les budgets</a>
+  </div>
+  {% endif %}
+  <div class="carte"><span class="discret">Patrimoine (comptes suivis)</span><br><strong class="{{ worth.total | amount_class }}">{{ worth.total | eur }}</strong>
+    {% if worth.accounts_without_balance %}<br><span class="discret">sans solde connu : {{ worth.accounts_without_balance | join(', ') }}</span>{% endif %}
+    {% if wealth.assets_cents or wealth.debts_cents %}<br><a class="discret" href="/patrimoine">Patrimoine net : {{ wealth.total_cents | eur }}</a>{% endif %}</div>
+  <div class="carte"><span class="discret">Recettes</span><br><strong class="positif">{{ current.income | eur }}</strong><br><span class="discret">{{ previous_year_label }} : {{ previous_year.income | eur }}</span></div>
+  <div class="carte"><span class="discret">Dépenses</span><br><strong class="negatif">{{ current.expenses | eur }}</strong><br><span class="discret">{{ previous_year_label }} : {{ previous_year.expenses | eur }}</span></div>
+  <div class="carte"><span class="discret">Solde du mois</span><br><strong class="{{ current.net | amount_class }}">{{ current.net | eur }}</strong><br>
+    <span class="discret">Taux d'épargne : {% if current.savings_rate_permille is not none %}{{ current.savings_rate_permille // 10 }},{{ (current.savings_rate_permille % 10) }} %{% else %}—{% endif %}</span></div>
+</div>
+
+<section class="carte">
+  <h2>Recettes et dépenses sur 12 mois</h2>
+  <div class="graphique"><canvas id="graphique-flux" aria-label="Recettes et dépenses sur 12 mois" role="img"></canvas></div>
+</section>
+
+<section class="carte">
+  <h2>Dépenses par catégorie</h2>
+  <div class="graphique anneau"><canvas id="graphique-categories" aria-label="Dépenses par catégorie" role="img"></canvas></div>
+  <table>
+    {% for name, total in categories %}
+    <tr><td>{% if name == "Non catégorisé" %}<a href="/transactions?categorie=0&amp;du={{ month }}-01&amp;au={{ month }}-31">{{ name }}</a>{% else %}{{ name }}{% endif %}</td><td class="montant negatif">{{ total | eur }}</td></tr>
+    {% else %}
+    <tr><td class="discret">Aucune dépense ce mois-ci.</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{# nosemgrep: var-in-script-tag (json_for_script échappe <, > et &, testé) #}
+<script type="application/json" id="donnees-graphiques">{{ chart_data | json_for_script }}</script>
+<script src="/static/vendor/chart-4.5.1.umd.min.js" defer></script>
+<script src="/static/dashboard.js" defer></script>
+{% endblock %}

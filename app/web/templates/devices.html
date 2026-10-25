@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Appareils · Finances{% endblock %}
+{% block content %}
+<h1>Application Android</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+{% if code %}
+<section class="carte" role="status">
+  <h2>Code d'appairage</h2>
+  <p class="code-appairage">{{ code }}</p>
+  <p>Dans l'application, saisissez l'adresse <strong>{{ server }}</strong> et ce code. Il ne sert qu'une fois et expire dans {{ minutes }} minutes ; il ne sera plus affiché.</p>
+</section>
+{% endif %}
+<form method="post" action="/appareils/code" class="carte">
+  <input type="hidden" name="csrf" value="{{ user.csrf }}">
+  <p class="discret">L'application reçoit un accès propre au téléphone, protégé par son empreinte digitale ou son code, et révocable ici à tout moment (perte, vol).</p>
+  <label>Mot de passe (confirmation) <input name="mot_de_passe" type="password" autocomplete="current-password" required></label>
+  <button type="submit">Appairer un téléphone</button>
+</form>
+<table>
+  <thead><tr><th>Appareil</th><th>Appairé le</th><th>Dernière connexion</th><th></th></tr></thead>
+  <tbody>
+  {% for d in devices %}
+    <tr{% if d.revoked_at %} class="discret"{% endif %}>
+      <td>{{ d.name }}</td><td>{{ d.created_at | datetime_fr }}</td>
+      <td>{% if d.last_seen_at %}{{ d.last_seen_at | datetime_fr }}{% else %}—{% endif %}</td>
+      <td>{% if d.revoked_at %}révoqué le {{ d.revoked_at | date_fr }}{% elif d.expired(now) %}inutilisé depuis plus de {{ idle_days }} jours : appairez-le de nouveau{% else %}
+        <form method="post" action="/appareils/{{ d.id }}/revoquer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Révoquer</button></form>{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="discret">Aucun téléphone appairé.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

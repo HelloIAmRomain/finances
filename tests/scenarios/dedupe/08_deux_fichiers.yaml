@@ -1,0 +1,10 @@
+description: Sans API, entre deux fichiers, le premier importé fait foi.
+imports:
+  - source: ofx
+    transactions:
+      - {id: ofx, external_id: F1, date: 2026-09-03, amount: -420, label: CARTE BOULANGERIE}
+  - source: csv
+    transactions:
+      - {id: csv, date: 2026-09-03, amount: -420, label: CARTE BOULANGERIE}
+expected_links:
+  - {canonical: ofx, duplicate: csv, reason: exact, status: confirmed, mode: auto}

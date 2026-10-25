@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Opérations · Finances{% endblock %}
+{% block content %}
+<h1>Opérations</h1>
+{% if erreur %}<p class="negatif" role="alert">{{ erreur }}</p>{% endif %}
+<form method="get" action="/transactions" class="carte filtres">
+  <label>Compte
+    <select name="compte"><option value="">Tous</option>{% for a in accounts %}<option value="{{ a.id }}"{% if params.get('compte') == a.id|string %} selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
+  </label>
+  <label>Du <input type="date" name="du" value="{{ params.get('du', '') }}"></label>
+  <label>Au <input type="date" name="au" value="{{ params.get('au', '') }}"></label>
+  <label>Libellé <input name="texte" value="{{ params.get('texte', '') }}"></label>
+  <label>Montant min. <input name="min" inputmode="decimal" value="{{ params.get('min', '') }}" size="8"></label>
+  <label>Montant max. <input name="max" inputmode="decimal" value="{{ params.get('max', '') }}" size="8"></label>
+  <label>Catégorie
+    <select name="categorie"><option value="">Toutes</option><option value="0"{% if params.get('categorie') == '0' %} selected{% endif %}>Non catégorisées</option>{% for id, label in categories %}<option value="{{ id }}"{% if params.get('categorie') == id|string %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  <label>Sens
+    <select name="sens"><option value="">Tous</option><option value="debit"{% if params.get('sens') == 'debit' %} selected{% endif %}>Dépenses</option><option value="credit"{% if params.get('sens') == 'credit' %} selected{% endif %}>Recettes</option></select>
+  </label>
+  <button type="submit">Filtrer</button>
+  <a href="/transactions/export.csv?{{ query }}">Exporter en CSV</a>
+</form>
+
+{% if suggestion %}
+<div class="carte" role="status">
+  <p>Catégorie enregistrée. Créer une règle pour les prochaines opérations « {{ suggestion.conditions.label_contains[0] }} » ({{ 'dépenses' if suggestion.conditions.direction == 'debit' else 'recettes' }}) ?</p>
+  <form method="post" action="/regles/depuis-transaction/{{ suggestion_id }}">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <button type="submit">Créer la règle</button>
+  </form>
+</div>
+{% endif %}
+
+<p class="discret">{{ total }} opération(s){% if pages > 1 %} · page {{ page }} sur {{ pages }}{% endif %}</p>
+<table>
+  <thead><tr><th>Date</th><th>Compte</th><th>Libellé</th><th>Catégorie</th><th class="montant">Montant</th></tr></thead>
+  <tbody>
+  {% for tx in rows %}
+    <tr>
+      <td>{{ tx.booking_date | date_fr }}</td>
+      <td>{{ tx.account_name }}</td>
+      <td>{{ tx.label }}{% if tx.is_transfer %} <span class="discret">(virement interne)</span>{% endif %}</td>
+      <td>
+        {% if tx.categories %}{{ tx.categories | join(' + ') }}{% else %}<span class="discret">non catégorisée</span>{% endif %}
+        <form method="post" action="/transactions/{{ tx.id }}/categorie" class="en-ligne">
+          <input type="hidden" name="csrf" value="{{ user.csrf }}">
+          <input type="hidden" name="retour" value="{{ request.url.path }}?{{ request.url.query }}">
+          <select name="categorie" aria-label="Catégorie">{% for id, label in categories %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select>
+          <button type="submit">Classer</button>
+        </form>
+      </td>
+      <td class="montant {{ tx.amount_cents | amount_class }}">{{ tx.amount_cents | eur }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="discret">Aucune opération ne correspond à ces filtres.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if pages > 1 %}
+<nav class="pagination">
+  {% if page > 1 %}<a href="/transactions?{{ query }}&amp;page={{ page - 1 }}">Précédente</a>{% endif %}
+  {% if page < pages %}<a href="/transactions?{{ query }}&amp;page={{ page + 1 }}">Suivante</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

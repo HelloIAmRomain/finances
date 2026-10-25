@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mise à jour toutes les heures (données du serveur, aucune requête à la banque), au toucher
+     de ↻ et après un renommage. Reconfigurable : appui long › Paramètres. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="perso.finances.widget.RentWidgetConfigureActivity"
+    android:initialLayout="@layout/widget_rents"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="3600000"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />

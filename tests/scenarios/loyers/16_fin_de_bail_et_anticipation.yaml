@@ -1,0 +1,14 @@
+nom: Échéance du mois suivant ouverte le 25 ; aucune échéance au-delà de la fin du bail
+bail: {type: rent, loyer: 80000, charges: 5000, fin: 2026-10-31}
+etapes:
+  - date: 2026-09-24
+    attendu:
+      echeances: {2026-09: impaye, 2026-10: null}
+  - date: 2026-09-26
+    operations:
+      - {montant: 85000, libelle: "VIR DE ALICE EXEMPLE OCTOBRE"}
+    attendu:
+      echeances: {2026-09: paye, 2026-10: attendu}
+  - date: 2026-11-26
+    attendu:
+      echeances: {2026-10: impaye, 2026-11: null, 2026-12: null}

@@ -1,0 +1,32 @@
+[Unit]
+Description=Finances : chien de garde du système (disque figé → redémarrage)
+Documentation=file:///srv/finances/docs/exploitation.md
+# Sans signal de vie pendant WatchdogSec, l'unité échoue et la machine redémarre proprement ;
+# un arrêt figé est rattrapé par le chien de garde matériel (RebootWatchdogSec).
+FailureAction=reboot
+ConditionPathExists=!/etc/finances/no-watchdog
+
+[Service]
+Type=notify
+NotifyAccess=all
+ExecStart=/srv/finances/deploy/watchdog.sh
+WatchdogSec=5min
+Restart=no
+StateDirectory=finances-watchdog
+StateDirectoryMode=0700
+DynamicUser=yes
+# Durcissement
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryMax=32M
+
+[Install]
+WantedBy=multi-user.target

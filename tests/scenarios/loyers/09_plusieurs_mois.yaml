@@ -1,0 +1,13 @@
+nom: Un virement unique couvre un mois en retard et le mois courant, au plus ancien d'abord
+etapes:
+  - date: 2026-09-11
+    attendu:
+      echeances: {2026-09: impaye}
+      alertes: [loyer_impaye:critical]
+  - date: 2026-10-02
+    operations:
+      - {montant: 170000, libelle: "VIR DE ALICE EXEMPLE SEPT ET OCT"}
+    attendu:
+      echeances: {2026-09: paye, 2026-10: paye}
+      alertes: []
+      incidents: [late, unpaid]

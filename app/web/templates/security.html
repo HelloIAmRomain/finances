@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Sécurité · Finances{% endblock %}
+{% block head %}<script src="/static/cle-securite.js" defer></script>{% endblock %}
+{% block content %}
+<h1>Sécurité</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<section class="carte">
+  <h2>Connexion</h2>
+  <p>Après le mot de passe, au choix : le <strong>code à 6 chiffres</strong> de l'application d'authentification, ou une <strong>clé de sécurité</strong> (YubiKey en USB-C sur l'ordinateur, en NFC contre le téléphone). Le code reste toujours utilisable, même si une clé est perdue.</p>
+</section>
+<section class="carte">
+  <h2>Clés de sécurité</h2>
+  <table>
+    {% for k in keys %}
+      <tr><td>{{ k.name }}</td><td class="discret">ajoutée le {{ k.created_at | date_fr }}{% if k.last_used_at %} · dernière utilisation le {{ k.last_used_at | datetime_fr }}{% endif %}</td>
+        <td><form method="post" action="/securite/cles/{{ k.id }}/supprimer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Retirer</button></form></td></tr>
+    {% else %}
+      <tr><td class="discret">Aucune clé enregistrée.</td></tr>
+    {% endfor %}
+  </table>
+  <form class="formulaire" id="formulaire-cle">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Nom de la clé <input name="nom" maxlength="64" value="YubiKey"></label>
+    <label>Mot de passe (confirmation) <input name="mot_de_passe" type="password" autocomplete="current-password" required></label>
+    <button type="button" id="ajouter-cle">Ajouter une clé de sécurité</button>
+    <p id="statut-inscription" role="status" hidden></p>
+  </form>
+  <p class="discret">Enregistrez de préférence deux clés (une de secours rangée ailleurs), ou gardez le code à 6 chiffres.</p>
+</section>
+<section class="carte" id="acces-ia">
+  <h2>Accès IA depuis le PC</h2>
+  <p>Une application d'IA installée sur le PC (qui accepte les extensions <code>.mcpb</code>) interroge et modifie l'application, via Tailscale. Elle ne reçoit que des données pseudonymisées (noms en initiales, références masquées) ; chaque modification est journalisée et <a href="/ia/modifications">annulable</a>. Aucun outil ne déplace d'argent.</p>
+  <form method="post" action="/securite/ia/interrupteurs" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label><input type="checkbox" name="acces" value="1" {% if ai_switches[ai_enabled_key] %}checked{% endif %}> Accès IA activé</label>
+    <label><input type="checkbox" name="ecriture" value="1" {% if ai_switches[ai_writes_key] %}checked{% endif %}> Modifications par l'IA autorisées (jetons « lecture + écriture »)</label>
+    <button type="submit">Enregistrer</button>
+  </form>
+  {% if new_token %}
+  <div class="carte" role="alert">
+    <p><strong>Nouveau jeton</strong> — à copier maintenant dans l'extension du PC, il ne sera plus affiché :</p>
+    <p><code class="jeton" id="nouveau-jeton">{{ new_token }}</code></p>
+  </div>
+  {% endif %}
+  <h3>Jetons</h3>
+  <table>
+    {% for t in ai_tokens %}
+      <tr><td>{{ t.name }}</td><td>{{ "lecture + écriture" if t.can_write else "lecture" }}</td>
+        <td class="discret">créé le {{ t.created_at | date_fr }}{% if t.last_used_at %} · utilisé le {{ t.last_used_at | datetime_fr }}{% endif %}{% if t.revoked_at %} · révoqué{% endif %}</td>
+        <td>{% if not t.revoked_at %}<form method="post" action="/securite/ia/jetons/{{ t.id }}/revoquer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Révoquer</button></form>{% endif %}</td></tr>
+    {% else %}
+      <tr><td class="discret">Aucun jeton.</td></tr>
+    {% endfor %}
+  </table>
+  <form method="post" action="/securite/ia/jetons" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Nom <input name="nom" maxlength="64" value="PC"></label>
+    <label><input type="checkbox" name="ecriture" value="1"> Autoriser les modifications</label>
+    <label>Mot de passe (confirmation) <input name="mot_de_passe" type="password" autocomplete="current-password" required></label>
+    <button type="submit">Créer un jeton</button>
+  </form>
+  <p><a href="/ia/extension.mcpb" download>Télécharger l'extension pour le PC (finances.mcpb)</a> — l'ouvrir avec l'application d'IA du PC, puis coller le jeton.</p>
+</section>
+<section class="carte" id="assistant-ia">
+  <h2>Assistant intégré (application et page Assistant)</h2>
+  <p>Mêmes outils que l'accès depuis le PC, mais par une API payante à l'usage (un abonnement à une application d'IA ne s'utilise pas par API). Clés à ajouter comme secrets : <code>anthropic_api_key</code>, <code>openai_api_key</code> ou <code>ovh_ai_api_key</code> (<code>deploy/set-secret.sh</code>).</p>
+  <form method="post" action="/securite/ia/assistant" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Fournisseur <select name="fournisseur">
+      {% for name, spec in providers.items() %}<option value="{{ name }}" {% if assistant[assistant_keys.provider] == name %}selected{% endif %}>{{ spec.label }} — {{ "clé présente" if provider_keys[name] else "clé absente" }}</option>{% endfor %}
+    </select></label>
+    <label>Modèle (vide : {{ providers[assistant[assistant_keys.provider]].model if assistant[assistant_keys.provider] in providers else "par défaut" }}) <input name="modele" maxlength="100" value="{{ assistant[assistant_keys.model] or '' }}"></label>
+    <label><input type="checkbox" name="en_direct" value="1" {% if assistant[assistant_keys.stream] %}checked{% endif %}> Afficher la réponse au fur et à mesure (en direct)</label>
+    <label>Plafond mensuel de l'IA, en jetons (unité de facturation des fournisseurs : environ 4 caractères chacun) <input name="plafond" type="number" min="0" step="100000" value="{{ assistant[assistant_keys.cap] }}"></label>
+    <button type="submit">Enregistrer</button>
+  </form>
+</section>
+<section class="carte" id="categorisation-ia">
+  <h2>Catégorisation automatique par l'IA</h2>
+  <p>Les nouvelles opérations sans règle sont classées par le fournisseur choisi pour l'assistant, une fois par heure et par lots de 40 au plus, sur le même plafond mensuel. L'IA ne reçoit que le libellé pseudonymisé (noms en initiales, références retirées), le montant et la date. Sous le seuil de confiance, la catégorie proposée attend votre accord dans « À valider ». Vos règles et vos choix passent toujours avant l'IA.</p>
+  {% if not ai_switches[ai_enabled_key] %}<p class="discret">L'accès IA est coupé (ci-dessus) : rien n'est envoyé tant qu'il l'est.</p>{% endif %}
+  <form method="post" action="/securite/ia/categorisation" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label class="case"><input type="checkbox" name="actif" value="1"{% if categorization[categorization_keys.auto] %} checked{% endif %}> Catégoriser automatiquement les nouvelles opérations</label>
+    <label>Seuil de confiance (%) <input name="seuil" type="number" min="0" max="100" value="{{ categorization[categorization_keys.threshold] // 10 }}"></label>
+    <button type="submit">Enregistrer</button>
+  </form>
+</section>
+<section class="carte" id="noms-ia">
+  <h2>Noms à abréger pour l'IA</h2>
+  <p>Les noms des payeurs des baux sont abrégés d'office. Ajoutez ici les autres noms de personnes (le vôtre, vos proches) ; les <em>émetteurs gardés</em> (employeur, organismes) restent en clair dans les virements. Liste chiffrée, jamais envoyée à l'IA.</p>
+  <table>
+    {% for term in ai_terms %}
+      <tr><td>{{ term.value }}</td><td class="discret">{{ "nom à abréger" if term.kind == "personne" else "émetteur gardé" }}</td>
+        <td><form method="post" action="/securite/ia/termes/{{ term.id }}/supprimer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Retirer</button></form></td></tr>
+    {% else %}
+      <tr><td class="discret">Liste vide.</td></tr>
+    {% endfor %}
+  </table>
+  <form method="post" action="/securite/ia/termes" class="formulaire">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <label>Type <select name="type"><option value="personne">Nom à abréger</option><option value="emetteur">Émetteur gardé en clair</option></select></label>
+    <label>Valeur <input name="valeur" maxlength="64" required></label>
+    <button type="submit">Ajouter</button>
+  </form>
+  <details>
+    <summary>Aperçu : ce que reçoit l'IA pour les dernières opérations</summary>
+    <table>
+      <tr><th>Libellé d'origine</th><th>Envoyé à l'IA</th></tr>
+      {% for original, shown in ai_preview %}<tr><td>{{ original }}</td><td>{{ shown }}</td></tr>{% endfor %}
+    </table>
+  </details>
+  <details>
+    <summary>Derniers appels de l'IA</summary>
+    <table>
+      {% for call, token_name in ai_calls %}
+        <tr><td class="discret">{{ call.at | datetime_fr }}</td><td>{{ call.tool }}</td><td>{{ "ok" if call.ok else "refusé" }}</td><td class="discret">{{ token_name }}</td></tr>
+      {% else %}
+        <tr><td class="discret">Aucun appel.</td></tr>
+      {% endfor %}
+    </table>
+  </details>
+</section>
+<section class="carte">
+  <h2>Application Android</h2>
+  <p><a href="/appareils">Appairer ou révoquer un téléphone</a></p>
+</section>
+{% endblock %}

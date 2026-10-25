@@ -1,0 +1,31 @@
+{
+  "session_id": "00000000-0000-4000-8000-0000000000aa",
+  "accounts": [
+    {
+      "uid": "00000000-0000-4000-8000-0000000000c1",
+      "account_id": {
+        "iban": "FR9299999000010000000020100"
+      },
+      "name": "Compte courant",
+      "currency": "EUR",
+      "cash_account_type": "CACC"
+    },
+    {
+      "uid": "00000000-0000-4000-8000-0000000000c2",
+      "account_id": {
+        "iban": "FR1199999000010000000020200"
+      },
+      "name": "Livret",
+      "currency": "EUR",
+      "cash_account_type": "SVGS"
+    }
+  ],
+  "aspsp": {
+    "name": "Banque Exemple",
+    "country": "FR"
+  },
+  "psu_type": "personal",
+  "access": {
+    "valid_until": "2027-03-26T10:00:00.000000+00:00"
+  }
+}

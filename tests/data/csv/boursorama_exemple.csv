@@ -1,0 +1,5 @@
+﻿dateOp;dateVal;label;category;categoryParent;supplierFound;amount;comment;accountNum;accountLabel;accountbalance
+2026-09-03;2026-09-03;"CARTE 02/09/26 BOULANGERIE EXEMPLE CB*1234";Alimentation;Vie quotidienne;boulangerie;-4,20;;00000000001;Compte joint;1 234,56
+2026-09-03;2026-09-03;"CARTE 02/09/26 BOULANGERIE EXEMPLE CB*1234";Alimentation;Vie quotidienne;boulangerie;-4,20;;00000000001;Compte joint;1 234,56
+2026-09-05;2026-09-05;"VIR SEPA LOYER SEPTEMBRE ALICE EXEMPLE";Loyers;Revenus;;850,00;;00000000001;Compte joint;1 234,56
+2026-09-10;2026-09-10;"PRLV SEPA ENERGIE EXEMPLE";Energie;Logement;energie exemple;-1 102,35;;00000000001;Compte joint;1 234,56

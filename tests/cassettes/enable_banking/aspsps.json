@@ -1,0 +1,23 @@
+{
+  "aspsps": [
+    {
+      "name": "Banque Exemple",
+      "country": "FR",
+      "maximum_consent_validity": 15552000,
+      "psu_types": [
+        "personal"
+      ],
+      "auth_methods": []
+    },
+    {
+      "name": "Autre Banque Exemple",
+      "country": "FR",
+      "maximum_consent_validity": 7776000,
+      "psu_types": [
+        "personal",
+        "business"
+      ],
+      "auth_methods": []
+    }
+  ]
+}

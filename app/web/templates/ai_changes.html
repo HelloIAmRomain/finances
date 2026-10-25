@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Modifications par l'IA · Finances{% endblock %}
+{% block content %}
+<h1>Modifications par l'IA</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<p>Chaque écriture faite par l'IA depuis le PC forme un lot, annulable tant que les objets concernés n'ont pas été modifiés depuis. Réglages de l'accès : <a href="/securite#acces-ia">Sécurité</a>.</p>
+<section class="carte">
+  <table>
+    <tr><th>Date</th><th>Modification</th><th>Lignes</th><th></th></tr>
+    {% for c in changes %}
+      <tr>
+        <td class="discret">{{ c.created_at | datetime_fr }}</td>
+        <td><a href="/ia/modifications?detail={{ c.id }}">{{ c.summary }}</a> <span class="discret">({{ c.tool }})</span></td>
+        <td>{{ c.row_count }}</td>
+        <td>{% if c.undone_at %}<span class="discret">annulée le {{ c.undone_at | datetime_fr }}</span>{% else %}<form method="post" action="/ia/modifications/{{ c.id }}/annuler" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Annuler</button></form>{% endif %}</td>
+      </tr>
+      {% if detail == c.id %}
+        <tr><td></td><td colspan="3">
+          <ul>{% for table, kind, count in detail_rows %}<li>{{ table }} : {{ count }} {{ kind }}{{ "s" if count > 1 else "" }}</li>{% endfor %}</ul>
+        </td></tr>
+      {% endif %}
+    {% else %}
+      <tr><td class="discret" colspan="4">Aucune modification faite par l'IA.</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

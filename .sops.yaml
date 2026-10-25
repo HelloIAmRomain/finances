@@ -1,0 +1,11 @@
+# Destinataires age des secrets (docs/exploitation.md, section Secrets) : clés publiques seulement.
+# Remplacer par la clé publique de la machine (affichée par deploy/bootstrap.sh) et la clé de secours.
+creation_rules:
+  - path_regex: deploy/secrets\.enc\.yaml$
+    age: >-
+      age1CLE_PUBLIQUE_DE_LA_MACHINE,
+      age1CLE_PUBLIQUE_DE_SECOURS
+  # Clé de signature Android : clé de secours seule.
+  - path_regex: android/signing\.enc\.yaml$
+    age: >-
+      age1CLE_PUBLIQUE_DE_SECOURS

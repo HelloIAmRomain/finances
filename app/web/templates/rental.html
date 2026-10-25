@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Loyers · Finances{% endblock %}
+{% macro badge(state) %}<span class="etat etat-{{ state }}">{{ state_labels[state] }}</span>{% endmacro %}
+{% block content %}
+<h1>Loyers et encaissements attendus</h1>
+{% if message %}<p class="carte" role="status">{{ message | sentence }}</p>{% endif %}
+<div class="actions">
+  <a class="bouton" href="/loyers/nouveau">Nouveau bail ou encaissement attendu</a>
+  <form method="post" action="/loyers/actualiser" class="en-ligne">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Mettre à jour maintenant</button>
+  </form>
+</div>
+
+{% if proposals %}
+<section class="carte">
+  <h2>À valider ({{ proposals | length }})</h2>
+  <p class="discret">Montant exact d'une échéance, mais émetteur non reconnu : rien n'est affecté sans votre accord.</p>
+  <table>
+    <thead><tr><th>Date</th><th>Opération</th><th>Échéance</th><th class="montant">Montant</th><th></th></tr></thead>
+    <tbody>
+    {% for p in proposals %}
+      <tr><td>{{ p.booking_date | date_fr }}</td><td>{{ p.label }}</td><td>{{ p.lease }} · {{ p.period }}</td>
+        <td class="montant positif">{{ p.amount_cents | eur }}</td>
+        <td>
+          <form method="post" action="/loyers/propositions/{{ p.id }}/confirmer" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Confirmer</button></form>
+          <form method="post" action="/loyers/propositions/{{ p.id }}/refuser" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">Refuser</button></form>
+        </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if overpayments %}
+<section class="carte">
+  <h2>Trop-perçus à traiter ({{ overpayments | length }})</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Opération</th><th>Bail</th><th class="montant">Excédent</th><th></th></tr></thead>
+    <tbody>
+    {% for o in overpayments %}
+      <tr><td>{{ o.booking_date | date_fr }}</td><td>{{ o.label }}</td><td>{{ o.lease }}</td><td class="montant">{{ o.amount_cents | eur }}</td>
+        <td>
+          <form method="post" action="/loyers/trop-percus/{{ o.id }}/reporter" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit">Reporter sur l'échéance suivante</button></form>
+          <form method="post" action="/loyers/trop-percus/{{ o.id }}/rembourser" class="en-ligne"><input type="hidden" name="csrf" value="{{ user.csrf }}"><button type="submit" class="secondaire">À rembourser</button></form>
+        </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% for lease in leases %}
+<section class="carte">
+  <h2><a href="/loyers/{{ lease.id }}">{{ lease.label }}</a> <span class="badge">{{ kind_labels[lease.kind] }}</span></h2>
+  <p class="discret">{% if lease.property_name %}<a href="/biens/{{ lease.property_id }}">{{ lease.property_name }}</a> · {% endif %}encaissé sur {{ lease.account_name }} · {{ lease.monthly_cents | eur }} par mois · alerte le {{ lease.alert_day }}, impayé le {{ lease.unpaid_day }}{% if lease.end_date %} · fin le {{ lease.end_date | date_fr }}{% endif %}</p>
+  <table>
+    <thead><tr><th>Mois</th><th>État</th><th class="montant">Reçu</th><th class="montant">Reste dû</th></tr></thead>
+    <tbody>
+    {% for due in lease.dues[-6:] | reverse %}
+      <tr><td>{{ due.period }}</td><td>{{ badge(due.state) }}</td><td class="montant">{{ due.paid_cents | eur }}</td><td class="montant{% if due.remaining_cents %} negatif{% endif %}">{{ due.remaining_cents | eur }}</td></tr>
+    {% else %}
+      <tr><td colspan="4" class="discret">Aucune échéance encore (le bail commence plus tard).</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% else %}
+<p class="carte discret">Aucun bail ni encaissement attendu. Commencez par « Nouveau bail ou encaissement attendu ».</p>
+{% endfor %}
+{% endblock %}

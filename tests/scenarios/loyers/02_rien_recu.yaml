@@ -1,0 +1,15 @@
+nom: Rien reçu - alerte le 5, puis impayé critique le 10 (CDC §5, Q16)
+etapes:
+  - date: 2026-09-04
+    attendu:
+      echeances: {2026-09: attendu}
+      alertes: []
+  - date: 2026-09-05
+    attendu:
+      echeances: {2026-09: en_retard}
+      alertes: [loyer_retard:warning]
+  - date: 2026-09-10
+    attendu:
+      echeances: {2026-09: impaye}
+      alertes: [loyer_impaye:critical]
+      incidents: [unpaid]
