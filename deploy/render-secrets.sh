@@ -85,6 +85,12 @@ render_into() {
 # Les deux destinations sont vérifiées avant toute écriture : pas de mise en place partielle.
 for dest in "$app_dest" "$host_dest"; do
 	mkdir -p "$(dirname "$dest")"
+	# Traversée sans lecture : les scripts de l'hôte (utilisateur finances, pas root) atteignent
+	# leurs secrets. Sous umask 077, ou resté en 0700, le parent les en empêchait (sauvegardes
+	# arrêtées du 19 au 26/10/2026).
+	if [[ -O "$(dirname "$dest")" ]]; then
+		chmod go+x,go-rw "$(dirname "$dest")"
+	fi
 	if [[ "${FINANCES_SECRETS_ALLOW_DISK:-0}" != 1 ]]; then
 		fstype="$(findmnt -no FSTYPE --target "$(dirname "$dest")")"
 		[[ "$fstype" == tmpfs || "$fstype" == ramfs ]] ||
