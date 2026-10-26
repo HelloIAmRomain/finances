@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  # Paquet propre au dépôt public (l'ancien « finances » reste rattaché au dépôt d'origine).
+  IMAGE: ghcr.io/${{ github.repository }}-app
 
 jobs:
   smoke:
