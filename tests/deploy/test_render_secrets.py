@@ -147,3 +147,21 @@ def test_host_secrets_never_reach_the_containers(
     assert (host / "restic_password").read_text("utf-8") == FAKE_RESTIC
     assert stat.S_IMODE(host.stat().st_mode) == 0o500
     assert FAKE_RESTIC not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_parent_directory_can_be_traversed(
+    encrypted: tuple[Path, Path], tmp_path: Path, existing: bool
+) -> None:
+    """Régression (sauvegardes arrêtées du 19 au 26/10/2026) : le parent, créé sous umask 077 ou
+    resté en 0700, empêchait les scripts de l'hôte (utilisateur finances) d'atteindre leurs
+    secrets ; traversée permise, contenu toujours non listable."""
+    enc, key = encrypted
+    dest = tmp_path / "run" / "secrets"
+    if existing:
+        dest.parent.mkdir(mode=0o700)
+    result = _render(enc, key, dest)
+    assert result.returncode == 0, result.stderr
+    mode = stat.S_IMODE(dest.parent.stat().st_mode)
+    assert mode & 0o011 == 0o011
+    assert mode & 0o044 == 0
